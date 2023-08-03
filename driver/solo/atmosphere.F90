@@ -163,30 +163,28 @@ contains
      endif
 
      if (.not. Atm(mygrid)%flagstruct%adiabatic) call gfdl_mp_init (input_nml_file, stdlog(), Atm(mygrid)%flagstruct%hydrostatic)
+     
+     
+     if ( Atm(mygrid)%flagstruct%nudge )    &
+          call fv_nwp_nudge_init( Time, axes, Atm(mygrid)%npz, zvir, Atm(mygrid)%ak, Atm(mygrid)%bk, Atm(mygrid)%ts, &
+          Atm(mygrid)%phis, Atm(mygrid)%gridstruct, Atm(mygrid)%ks, Atm(mygrid)%npx, Atm(mygrid)%neststruct, Atm(mygrid)%bd)
 
+     if ( Atm(mygrid)%flagstruct%make_nh ) then
+        Atm(mygrid)%w(:,:,:) = 0.
+     endif
 
-        if ( Atm(mygrid)%flagstruct%nudge )    &
-             call fv_nwp_nudge_init( Time, axes, Atm(mygrid)%npz, zvir, Atm(mygrid)%ak, Atm(mygrid)%bk, Atm(mygrid)%ts, &
-             Atm(mygrid)%phis, Atm(mygrid)%gridstruct, Atm(mygrid)%ks, Atm(mygrid)%npx, Atm(mygrid)%neststruct, Atm(mygrid)%bd)
+     if ( Atm(mygrid)%flagstruct%na_init>0 ) then
+        call adiabatic_init(zvir,mygrid)
+     endif
 
-        if ( Atm(mygrid)%flagstruct%make_nh ) then
-           Atm(mygrid)%w(:,:,:) = 0.
-        endif
+     theta_d = get_tracer_index (MODEL_ATMOS, 'theta_d')
+     if ( theta_d > 0 ) then
+        call eqv_pot(Atm(mygrid)%q(isc:iec,jsc:jec,:,theta_d), Atm(mygrid)%pt, Atm(mygrid)%delp,    &
+             Atm(mygrid)%delz, Atm(mygrid)%peln, Atm(mygrid)%pkz, Atm(mygrid)%q(isd,jsd,1,1), isc, iec, jsc, jec, Atm(mygrid)%ng,   &
+             Atm(mygrid)%npz,  Atm(mygrid)%flagstruct%hydrostatic, Atm(mygrid)%flagstruct%moist_phys)
+     endif
 
-        if ( Atm(mygrid)%flagstruct%na_init>0 ) then
-           call adiabatic_init(zvir,mygrid)
-        endif
-
-        theta_d = get_tracer_index (MODEL_ATMOS, 'theta_d')
-        if ( theta_d > 0 ) then
-           call eqv_pot(Atm(mygrid)%q(isc:iec,jsc:jec,:,theta_d), Atm(mygrid)%pt, Atm(mygrid)%delp,    &
-                Atm(mygrid)%delz, Atm(mygrid)%peln, Atm(mygrid)%pkz, Atm(mygrid)%q(isd,jsd,1,1), isc, iec, jsc, jec, Atm(mygrid)%ng,   &
-                Atm(mygrid)%npz,  Atm(mygrid)%flagstruct%hydrostatic, Atm(mygrid)%flagstruct%moist_phys)
-        endif
-
-        Atm(n)%time_init = Time_init
-
-     enddo
+     Atm(n)%time_init = Time_init
 
    call timing_off('ATMOS_INIT')
 
