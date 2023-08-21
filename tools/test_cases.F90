@@ -4582,8 +4582,8 @@ end subroutine terminator_tracers
         real, dimension(npz+1):: pk1, pe1
         real :: us0 = 30.
         real :: dist, dist0, r0, f0_const, prf, rgrav
-        real :: ptmp, ze, zc, zm, utmp, vtmp, xr, yr, tmp
-        real :: t00, p00, xmax, xc, xx, yy, pk0, pturb, ztop
+        real :: ptmp, ze, zc, zm, zr, utmp, vtmp, xr, yr, tmp
+        real :: t00, p00, xmax, xc, yc, xx, yy, pk0, pturb, ztop
         real :: ze1(npz+1)
         real:: dz1(npz), qc1(npz), qv1(npz)
         real :: gz(bd%isd:bd%ied,bd%jsd:bd%jed,npz+1)
@@ -4818,76 +4818,24 @@ end subroutine terminator_tracers
          !--------------------------------------------------------------
 #endif
 
-        case ( 15 )
-!---------------------------
-! Doubly periodic warm bubble
-!---------------------------
-           t00 = 250.
-
-           u(:,:,:) = 0.
-           v(:,:,:) = 0.
-          pt(:,:,:) = t00
-          q(:,:,:,:) = 1.E-6
-
-          if ( .not. hydrostatic ) w(:,:,:) = 0.
-
-           do j=jsd,jed
-              do i=isd,ied
-                 phis(i,j) = 0.
-                   ps(i,j) = 1000.E2
-              enddo
-           enddo
-
-           do k=1,npz
-              do j=jsd,jed
-                 do i=isd,ied
-                    delp(i,j,k) = ak(k+1)-ak(k) + ps(i,j)*(bk(k+1)-bk(k))
-                 enddo
-              enddo
-           enddo
-
-
-
-          call p_var(npz, is, ie, js, je, ptop, ptop_min, delp, delz, pt, ps,   &
-                     pe, peln, pk, pkz, kappa, q, ng, ncnst, area, dry_mass, .false., .false., &
-                     moist_phys, .false., nwat, domain, flagstruct%adiabatic, .true.)
-
-! *** Add Initial perturbation ***
-           r0 = 5.*max(dx_const, dy_const)
-           zc = 0.5e3         ! center of bubble  from surface
-           icenter = npx/2
-           jcenter = npy/2
-
-           do j=js,je
-              do i=is,ie
-                 ze = 0.
-                 do k=npz,1,-1
-                    zm = ze - 0.5*delz(i,j,k)   ! layer center
-                    ze = ze - delz(i,j,k)
-                    dist = ((i-icenter)*dx_const)**2 + ((j-jcenter)*dy_const)**2 +  &
-                           (zm-zc)**2
-                    dist = sqrt(dist)
-                    if ( dist <= r0 ) then
-                       pt(i,j,k) = pt(i,j,k) + 5.*(1.-dist/r0)
-                    endif
-                 enddo
-              enddo
-           enddo
-
-        case ( 16 )
+        case ( 15,16 )
 !------------------------------------
-! Non-hydrostatic 3D density current:
+! Nonhydrostatic 3D cold + warm bubbles (geophysical scale)
 !------------------------------------
            phis = 0.
            u = 0.
            v = 0.
            w = 0.
-          t00 = 300.
+           if (test_case == 15) then
+              t00 = 303.14 !Robert 1993
+           else
+              t00 = 300.
+           endif
           p00 = 1.E5
           pk0 = p00**kappa
-! Set up vertical coordinare with constant del-z spacing:
+! Set up vertical coordinate with constant dz and 6400 m top:
 ! Control: npz=64;  dx = 100 m; dt = 1; n_split=10
-          ztop = 6.4E3
+          ztop = 6400.
          ze1(    1) = ztop
          ze1(npz+1) = 0.
          do k=npz,2,-1
@@ -4912,14 +4860,33 @@ end subroutine terminator_tracers
              enddo
           enddo
 
+          !IMPORTANT set up ptop, ak, and bk
           ptop = pe(is,1,js)
-          if ( is_master() ) write(*,*) 'Density curent testcase: model top (mb)=', ptop/100.
+          ks = npz/5
+          do k=1,ks
+             ak(k) = pe(is,k,js) !uniform pressure
+             bk(k) = 0.0
+          enddo
+          do k=ks+1,npz
+             bk(k) = ( pe(is,k,js) -  pe(is,ks,js)) / (p00 - pe(is,ks,js))
+             bk(k) = bk(k)**2 !smoother profile
+             ak(k) = pe(is,k,js) - bk(k)*p00
+          enddo
+          bk(npz+1) = 1.0
+          ak(npz+1) = 0.0
+
+          if ( is_master() ) then
+             if (test_case == 15) then
+                write(*,*) 'Warm bubble testcase: model top (mb)=', ptop/100.
+             else
+                write(*,*) 'Density current testcase: model top (mb)=', ptop/100.
+             endif
+          endif
 
           do k=1,npz+1
              do j=js,je
                 do i=is,ie
                    peln(i,k,j) = log(pe(i,k,j))
-                    !ze0(i,j,k) = ze1(k) !not used?
                 enddo
              enddo
           enddo
@@ -4929,7 +4896,7 @@ end subroutine terminator_tracers
                 do i=is,ie
                    pkz(i,j,k) = (pk(i,j,k+1)-pk(i,j,k))/(kappa*(peln(i,k+1,j)-peln(i,k,j)))
                   delp(i,j,k) =  pe(i,k+1,j)-pe(i,k,j)
-                    pt(i,j,k) = t00/pk0   ! potential temp
+                    pt(i,j,k) = t00*pkz(i,j,k)/pk0   ! potential temp
                 enddo
              enddo
           enddo
@@ -4938,28 +4905,44 @@ end subroutine terminator_tracers
                      pe, peln, pk, pkz, kappa, q, ng, ncnst, area, dry_mass, .false., .false., &
                      moist_phys, .false., nwat, domain, flagstruct%adiabatic, .true.)
 
-          pturb = 15.
-           xmax = 51.2E3
-             xc = xmax / 2.
+          if (test_case == 15) then
+             pturb = 0.5
+             zc = 500.
+             zr = 250.
+             r0 = max(250., 5.*max(dx_const, dy_const))
+          else
+             pturb = 15.
+             zc = 3.E3
+             zr = 2.e3
+             r0 = 4.e3
+          endif
+          xc = dx_const * (npx-1) / 2.
+          yc = dy_const * (npy-1) / 2.
 
-         do k=1,npz
-            zm = (0.5*(ze1(k)+ze1(k+1))-3.E3) / 2.E3
-            do j=js,je
-               do i=is,ie
-! Impose perturbation in potential temperature: pturb
-                  xx = (dx_const * (0.5+real(i-1)) - xc) / 4.E3
-                  yy = (dy_const * (0.5+real(j-1)) - xc) / 4.E3
-                  dist = sqrt( xx**2 + yy**2 + zm**2 )
-                  if ( dist<=1. ) then
-                       pt(i,j,k) = pt(i,j,k) - pturb/pkz(i,j,k)*(cos(pi*dist)+1.)/2.
-                  endif
-! Transform back to temperature:
-                  pt(i,j,k) = pt(i,j,k) * pkz(i,j,k)
-               enddo
-            enddo
-          enddo
+! *** Add Initial perturbation ***
+        if (bubble_do) then
+           m = get_tracer_index (MODEL_ATMOS, 'bubble_tracer')
 
-      case ( 17 )
+           icenter = (npx-1)/2 + 1
+           jcenter = (npy-1)/2 + 1
+           do k=1, npz
+              zm = 0.5*(ze1(k)+ze1(k+1))
+              ptmp = ( (zm-zc)/zc ) **2
+              do j=js,je
+                 do i=is,ie
+                    dist = ptmp+((i-icenter)*dx_const/r0)**2+((j-jcenter)*dy_const/r0)**2
+                    if ( dist<=1. ) then
+                       pt(i,j,k) = pt(i,j,k) + pturb*pkz(i,j,k)/pk0*(cos(pi*dist)+1.)
+                       if (m > 0) then
+                          q(i,j,k,m) = pturb*pkz(i,j,k)/pk0*(cos(pi*dist)+1.)
+                       endif
+                    endif
+                 enddo
+              enddo
+           enddo
+        endif
+
+       case ( 17 )
 !---------------------------
 ! Doubly periodic SuperCell, straight wind (v==0)
 !--------------------------
