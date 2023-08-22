@@ -123,7 +123,7 @@
       logical :: no_wind = .false.
       logical :: gaussian_dt = .false.
       logical :: do_marine_sounding = .false.
-      real    :: dt_amp = 2.1   ! K
+      real    :: dt_amp = -1.0 !  2.1   ! K
       real    :: dt_rad = 2000. !m
       real    :: alpha = 0.0
       integer :: Nsolitons = 2
@@ -4761,6 +4761,9 @@ end subroutine terminator_tracers
                jcenter = (npy-1)/2
                zc = 1500. !1500 m center AGL
 
+               pturb = 2.1
+               if (dt_amp > 0.) pturb = dt_amp
+
                do j=js,je
                   do i=is,ie
                      dist0 = (real(i-icenter)*dx_const/dt_rad)**2 + (real(j-jcenter)*dy_const/dt_rad)**2
@@ -4833,9 +4836,9 @@ end subroutine terminator_tracers
            endif
           p00 = 1.E5
           pk0 = p00**kappa
-! Set up vertical coordinate with constant dz and 6400 m top:
-! Control: npz=64;  dx = 100 m; dt = 1; n_split=10
-          ztop = 6400.
+! Set up vertical coordinate with constant dz and 10000 m top:
+! Control: npz=100;  dx = 100 m; dt = 1; n_split=10
+          ztop  10000. ! 6400.
          ze1(    1) = ztop
          ze1(npz+1) = 0.
          do k=npz,2,-1
@@ -4905,22 +4908,29 @@ end subroutine terminator_tracers
                      pe, peln, pk, pkz, kappa, q, ng, ncnst, area, dry_mass, .false., .false., &
                      moist_phys, .false., nwat, domain, flagstruct%adiabatic, .true.)
 
-          if (test_case == 15) then
-             pturb = 0.5
-             zc = 500.
-             zr = 250.
-             r0 = max(250., 5.*max(dx_const, dy_const))
-          else
-             pturb = 15.
-             zc = 3.E3
-             zr = 2.e3
-             r0 = 4.e3
-          endif
-          xc = dx_const * (npx-1) / 2.
-          yc = dy_const * (npy-1) / 2.
-
 ! *** Add Initial perturbation ***
         if (bubble_do) then
+           if (test_case == 15) then
+              if (dt_amp < 0.) then
+                 pturb = 2. ! 0.5
+                 zc = 2000. ! 500.
+                 zr = 2000. ! 250.
+                 r0 = max(250., 5.*max(dx_const, dy_const))
+              else
+                 pturb = dt_amp
+                 zc = dt_rad
+                 zr = dt_rad
+                 r0 = dt_rad
+              endif
+           else
+              pturb = 15.
+              zc = 3.E3
+              zr = 2.e3
+              r0 = 4.e3
+           endif
+           xc = dx_const * (npx-1) / 2.
+           yc = dy_const * (npy-1) / 2.
+
            m = get_tracer_index (MODEL_ATMOS, 'bubble_tracer')
 
            icenter = (npx-1)/2 + 1
@@ -4930,7 +4940,8 @@ end subroutine terminator_tracers
               ptmp = ( (zm-zc)/zc ) **2
               do j=js,je
                  do i=is,ie
-                    dist = ptmp+((i-icenter)*dx_const/r0)**2+((j-jcenter)*dy_const/r0)**2
+                    dist = ptmp+((i-icenter)*dx_const/r0)**2
+                    if (npy > 10) dist = dist + ((j-jcenter)*dy_const/r0)**2
                     if ( dist<=1. ) then
                        pt(i,j,k) = pt(i,j,k) + pturb*pkz(i,j,k)/pk0*(cos(pi*dist)+1.)
                        if (m > 0) then
@@ -5018,7 +5029,8 @@ end subroutine terminator_tracers
 
 ! *** Add Initial perturbation ***
         if (bubble_do) then
-           pturb = dt_amp ! 2.
+           pturb = 2.
+           if (dt_amp > 0. ) pturb = dt_amp 
            r0 = dt_rad ! 10.e3
            zc = 1.4e3         ! center of bubble  from surface
            icenter = (npx-1)/2 + 1
@@ -5127,7 +5139,8 @@ end subroutine terminator_tracers
 
 ! *** Add Initial perturbation ***
         if (bubble_do) then
-           pturb = dt_amp ! 2.
+           pturb = 2.
+           if (dt_amp > 0.) pturb = dt_amp
            r0 = dt_rad ! 10.e3
            zc = 1.4e3         ! center of bubble  from surface
            icenter = (npx-1)/2 + 1
@@ -5225,7 +5238,8 @@ end subroutine terminator_tracers
         if (gaussian_dt) then
 
 ! *** Add Initial perturbation (Gaussian) ***
-        pturb = dt_amp
+        pturb = 2.1
+        if (dt_amp > 0.) pturb = dt_amp
         r0 = dt_rad ! 10.e3
         zc = 1.4e3         ! center of bubble  from surface
         icenter = (npx-1)/2 + 1
@@ -5246,7 +5260,8 @@ end subroutine terminator_tracers
         else if (bubble_do) then
 
 ! *** Add Initial perturbation (Ellipse) ***
-        pturb = dt_amp
+        pturb = 2.1
+        if (dt_amp > 0.) pturb = dt_amp
         r0 = dt_rad ! 10.e3
         zc = 1.4e3         ! center of bubble  from surface
         icenter = (npx-1)/2 + 1
