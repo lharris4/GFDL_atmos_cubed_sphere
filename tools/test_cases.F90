@@ -4821,7 +4821,7 @@ end subroutine terminator_tracers
          !--------------------------------------------------------------
 #endif
 
-        case ( 15,16 )
+        case ( 15,16,-15 )
 !------------------------------------
 ! Nonhydrostatic 3D cold + warm bubbles (geophysical scale)
 !------------------------------------
@@ -4837,8 +4837,12 @@ end subroutine terminator_tracers
           p00 = 1.E5
           pk0 = p00**kappa
 ! Set up vertical coordinate with constant dz and 10000 m top:
-! Control: npz=100;  dx = 100 m; dt = 1; n_split=10
-          ztop  10000. ! 6400.
+          ! Control: npz=100;  dx = 100 m; dt = 1; n_split=10
+          if (test_case > 0) then
+             ztop = 10000. ! 6400.
+          else
+             ztop = 1500.
+          endif
          ze1(    1) = ztop
          ze1(npz+1) = 0.
          do k=npz,2,-1
@@ -4879,7 +4883,7 @@ end subroutine terminator_tracers
           ak(npz+1) = 0.0
 
           if ( is_master() ) then
-             if (test_case == 15) then
+             if (abs(test_case) == 15) then
                 write(*,*) 'Warm bubble testcase: model top (mb)=', ptop/100.
              else
                 write(*,*) 'Density current testcase: model top (mb)=', ptop/100.
@@ -4922,6 +4926,18 @@ end subroutine terminator_tracers
                  zr = dt_rad
                  r0 = dt_rad
               endif
+           else if (test_case == -15) then
+              if (dt_amp < 0.) then
+                 pturb = 0.5
+                 zc = 250.
+                 zr = 250.
+                 r0 = max(250., 5.*max(dx_const, dy_const))
+              else
+                 pturb = dt_amp
+                 zc = dt_rad
+                 zr = dt_rad
+                 r0 = dt_rad
+              endif
            else
               pturb = 15.
               zc = 3.E3
@@ -4943,9 +4959,9 @@ end subroutine terminator_tracers
                     dist = ptmp+((i-icenter)*dx_const/r0)**2
                     if (npy > 10) dist = dist + ((j-jcenter)*dy_const/r0)**2
                     if ( dist<=1. ) then
-                       pt(i,j,k) = pt(i,j,k) + pturb*pkz(i,j,k)/pk0*(cos(pi*dist)+1.)
+                       pt(i,j,k) = pt(i,j,k) + pturb*pkz(i,j,k)/pk0*(cos(pi*dist)+1.)*0.5
                        if (m > 0) then
-                          q(i,j,k,m) = pturb*pkz(i,j,k)/pk0*(cos(pi*dist)+1.)
+                          q(i,j,k,m) = pturb*pkz(i,j,k)/pk0*(cos(pi*dist)+1.)*0.5
                        endif
                     endif
                  enddo
