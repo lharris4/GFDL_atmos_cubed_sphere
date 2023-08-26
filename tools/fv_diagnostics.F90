@@ -229,7 +229,7 @@ contains
        endif
     enddo
     if ( Atm(1)%flagstruct%fv_debug .and. is_master() ) then
-       write(*,*) 'radar reflectivity: mp_top=', mp_top, 'pfull=', pfull(mp_top)
+       write(*,'(2x, A, G, A, G)') 'radar reflectivity: mp_top=', mp_top, 'pfull=', pfull(mp_top)
     endif
 
 !   allocate(grid_xt(npx-1), grid_yt(npy-1), grid_xe(npx), grid_ye(npy-1), grid_xn(npx-1), grid_yn(npy))
@@ -1599,8 +1599,12 @@ contains
 
     if( prt_minmax ) then
 
-        !call prt_mxm('ZS (m): ', zsurf,     isc, iec, jsc, jec, 0,   1, 1.0, Atm(n)%gridstruct%area_64, Atm(n)%domain)
-        call prt_mxm('PS (Pa): ', Atm(n)%ps, isc, iec, jsc, jec, ngc, 1, 0.01, Atm(n)%gridstruct%area_64, Atm(n)%domain)
+
+        call prt_mass(npz, nq, isc, iec, jsc, jec, ngc, Atm(n)%flagstruct%nwat,    &
+                      Atm(n)%ps, Atm(n)%delp, Atm(n)%q, Atm(n)%gridstruct%area_64, Atm(n)%domain)
+
+        !call prt_mxm('ZS (m) ', zsurf,     isc, iec, jsc, jec, 0,   1, 1.0, Atm(n)%gridstruct%area_64, Atm(n)%domain)
+        call prt_mxm('PS (Pa) ', Atm(n)%ps, isc, iec, jsc, jec, ngc, 1, 0.01, Atm(n)%gridstruct%area_64, Atm(n)%domain)
 
 #ifdef HIWPP
         if (.not. Atm(n)%gridstruct%bounded_domain ) then
@@ -1625,16 +1629,13 @@ contains
         endif
 #endif
 
-        call prt_mass(npz, nq, isc, iec, jsc, jec, ngc, Atm(n)%flagstruct%nwat,    &
-                      Atm(n)%ps, Atm(n)%delp, Atm(n)%q, Atm(n)%gridstruct%area_64, Atm(n)%domain)
-
 #ifndef SW_DYNAMICS
         if (Atm(n)%flagstruct%consv_te > 1.e-5) then
            idiag%steps = idiag%steps + 1
            idiag%efx_sum = idiag%efx_sum + E_Flux
            if ( idiag%steps <= max_step ) idiag%efx(idiag%steps) = E_Flux
            if (master)  then
-              write(*,*) 'Energy_Deficit (W/m**2)', trim(gn), ' = ', E_Flux
+              write(*,'(2x, 3A, G)') 'Energy_Deficit (W/m**2)', trim(gn), ' = ', E_Flux
            endif
 
 
@@ -1646,43 +1647,43 @@ contains
                                sphum, liq_wat, rainwat, ice_wat, snowwat, graupel, Atm(n)%flagstruct%nwat,     &
                                Atm(n)%ua, Atm(n)%va, Atm(n)%flagstruct%moist_phys, a2)
 #endif
-        !call prt_mxm('UA_Top (m/s): ', Atm(n)%ua(isc:iec,jsc:jec,1),    &
+        !call prt_mxm('UA_Top (m/s)', Atm(n)%ua(isc:iec,jsc:jec,1),    &
         !                isc, iec, jsc, jec, 0, 1, 1., Atm(n)%gridstruct%area_64, Atm(n)%domain)
-        !call prt_mxm('UA_Bottom (m/s): ', Atm(n)%ua(isc:iec,jsc:jec,npz),    &
+        !call prt_mxm('UA_Bottom (m/s)', Atm(n)%ua(isc:iec,jsc:jec,npz),    &
         !                isc, iec, jsc, jec, 0, 1, 1., Atm(n)%gridstruct%area_64, Atm(n)%domain)
-        call prt_mxm('UA (m/s): ', Atm(n)%ua, isc, iec, jsc, jec, ngc, npz, 1., Atm(n)%gridstruct%area_64, Atm(n)%domain)
-        !call prt_mxm('VA_Top (m/s): ', Atm(n)%va(isc:iec,jsc:jec,1),    &
+        call prt_mxm('UA (m/s)', Atm(n)%ua, isc, iec, jsc, jec, ngc, npz, 1., Atm(n)%gridstruct%area_64, Atm(n)%domain)
+        !call prt_mxm('VA_Top (m/s)', Atm(n)%va(isc:iec,jsc:jec,1),    &
         !                isc, iec, jsc, jec, 0, 1, 1., Atm(n)%gridstruct%area_64, Atm(n)%domain)
-        !call prt_mxm('VA_Bottom (m/s): ', Atm(n)%va(isc:iec,jsc:jec,npz),    &
+        !call prt_mxm('VA_Bottom (m/s)', Atm(n)%va(isc:iec,jsc:jec,npz),    &
         !                isc, iec, jsc, jec, 0, 1, 1., Atm(n)%gridstruct%area_64, Atm(n)%domain)
-        call prt_mxm('VA (m/s): ', Atm(n)%va, isc, iec, jsc, jec, ngc, npz, 1., Atm(n)%gridstruct%area_64, Atm(n)%domain)
+        call prt_mxm('VA (m/s)', Atm(n)%va, isc, iec, jsc, jec, ngc, npz, 1., Atm(n)%gridstruct%area_64, Atm(n)%domain)
 
         if ( .not. Atm(n)%flagstruct%hydrostatic ) then
-          !call prt_mxm('W_Top (m/s): ', Atm(n)%w(isc:iec,jsc:jec,1), isc, iec, jsc, jec, 0, 1, 1., Atm(n)%gridstruct%area_64, Atm(n)%domain)
-          !call prt_mxm('W_Bottom (m/s): ', Atm(n)%w(isc:iec,jsc:jec,npz), isc, iec, jsc, jec, 0, 1, 1., Atm(n)%gridstruct%area_64, Atm(n)%domain)
-          call prt_mxm('W (m/s): ', Atm(n)%w , isc, iec, jsc, jec, ngc, npz, 1., Atm(n)%gridstruct%area_64, Atm(n)%domain)
+          !call prt_mxm('W_Top (m/s)', Atm(n)%w(isc:iec,jsc:jec,1), isc, iec, jsc, jec, 0, 1, 1., Atm(n)%gridstruct%area_64, Atm(n)%domain)
+          !call prt_mxm('W_Bottom (m/s)', Atm(n)%w(isc:iec,jsc:jec,npz), isc, iec, jsc, jec, 0, 1, 1., Atm(n)%gridstruct%area_64, Atm(n)%domain)
+          call prt_mxm('W (m/s)', Atm(n)%w , isc, iec, jsc, jec, ngc, npz, 1., Atm(n)%gridstruct%area_64, Atm(n)%domain)
           do j=jsc,jec
              do i=isc,iec
                 a2(i,j) = -Atm(n)%w(i,j,npz)/Atm(n)%delz(i,j,npz)
              enddo
           enddo
-          !call prt_mxm('W/dz_Bottom (1/s): ', a2, isc, iec, jsc, jec, 0, 1, 1., Atm(n)%gridstruct%area_64, Atm(n)%domain)
+          !call prt_mxm('W/dz_Bottom (1/s)', a2, isc, iec, jsc, jec, 0, 1, 1., Atm(n)%gridstruct%area_64, Atm(n)%domain)
 
           if ( Atm(n)%flagstruct%hybrid_z ) call prt_mxm('Hybrid_ZTOP (km)', Atm(n)%ze0(isc:iec,jsc:jec,1), &
                                                  isc, iec, jsc, jec, 0, 1, 1.E-3, Atm(n)%gridstruct%area_64, Atm(n)%domain)
-          !call prt_mxm('DZ_Top (m): ', Atm(n)%delz(isc:iec,jsc:jec,1),    &
+          !call prt_mxm('DZ_Top (m)', Atm(n)%delz(isc:iec,jsc:jec,1),    &
           !                isc, iec, jsc, jec, 0, 1, 1., Atm(n)%gridstruct%area_64, Atm(n)%domain)
-          !call prt_mxm('DZ_Bottom (m): ', Atm(n)%delz(isc:iec,jsc:jec,npz),    &
+          !call prt_mxm('DZ_Bottom (m)', Atm(n)%delz(isc:iec,jsc:jec,npz),    &
           !                isc, iec, jsc, jec, 0, 1, 1., Atm(n)%gridstruct%area_64, Atm(n)%domain)
-          !call prt_mxm('DZ (m): ', Atm(n)%delz(isc:iec,jsc:jec,1:npz),    &
+          !call prt_mxm('DZ (m)', Atm(n)%delz(isc:iec,jsc:jec,1:npz),    &
           !                isc, iec, jsc, jec, 0, npz, 1., Atm(n)%gridstruct%area_64, Atm(n)%domain)
         endif
 
 #ifndef SW_DYNAMICS
-        !call prt_mxm('TA_Top (K): ', Atm(n)%pt(isc:iec,jsc:jec,  1), isc, iec, jsc, jec, 0, 1, 1., Atm(n)%gridstruct%area_64, Atm(n)%domain)
-        !call prt_mxm('TA_Bottom (K): ', Atm(n)%pt(isc:iec,jsc:jec,npz), isc, iec, jsc, jec, 0, 1, 1., Atm(n)%gridstruct%area_64, Atm(n)%domain)
-        call prt_mxm('TA (K): ', Atm(n)%pt,   isc, iec, jsc, jec, ngc, npz, 1., Atm(n)%gridstruct%area_64, Atm(n)%domain)
-        call prt_mxm('OM (pa/s): ', Atm(n)%omga, isc, iec, jsc, jec, ngc, npz, 1., Atm(n)%gridstruct%area_64, Atm(n)%domain)
+        !call prt_mxm('TA_Top (K)', Atm(n)%pt(isc:iec,jsc:jec,  1), isc, iec, jsc, jec, 0, 1, 1., Atm(n)%gridstruct%area_64, Atm(n)%domain)
+        !call prt_mxm('TA_Bottom (K)', Atm(n)%pt(isc:iec,jsc:jec,npz), isc, iec, jsc, jec, 0, 1, 1., Atm(n)%gridstruct%area_64, Atm(n)%domain)
+        call prt_mxm('TA (K)', Atm(n)%pt,   isc, iec, jsc, jec, ngc, npz, 1., Atm(n)%gridstruct%area_64, Atm(n)%domain)
+        call prt_mxm('OM (pa/s)', Atm(n)%omga, isc, iec, jsc, jec, ngc, npz, 1., Atm(n)%gridstruct%area_64, Atm(n)%domain)
 #endif
 
     elseif ( Atm(n)%flagstruct%range_warn ) then
@@ -2015,9 +2016,9 @@ contains
           enddo
           used = send_data ( id_rh, wk, Time )
           if(prt_minmax) then
-             call prt_mxm('RH_Top (%): ', wk(isc:iec,jsc:jec,1), isc, iec, jsc, jec, 0,   1, 1., Atm(n)%gridstruct%area_64, Atm(n)%domain)
-             call prt_mxm('RH_Bottom (%): ', wk(isc:iec,jsc:jec,npz), isc, iec, jsc, jec, 0,   1, 1., Atm(n)%gridstruct%area_64, Atm(n)%domain)
-             call prt_mxm('RH (%): ', wk, isc, iec, jsc, jec, 0, npz, 1., Atm(n)%gridstruct%area_64, Atm(n)%domain)
+             !call prt_mxm('RH_Top (%)', wk(isc:iec,jsc:jec,1), isc, iec, jsc, jec, 0,   1, 1., Atm(n)%gridstruct%area_64, Atm(n)%domain)
+             !call prt_mxm('RH_Bottom (%)', wk(isc:iec,jsc:jec,npz), isc, iec, jsc, jec, 0,   1, 1., Atm(n)%gridstruct%area_64, Atm(n)%domain)
+             call prt_mxm('RH (%)', wk, isc, iec, jsc, jec, 0, npz, 1., Atm(n)%gridstruct%area_64, Atm(n)%domain)
              call interpolate_vertical(isc, iec, jsc, jec, npz, 200.e2, Atm(n)%peln, wk(isc:iec,jsc:jec,:), a2)
              if (.not. Atm(n)%gridstruct%bounded_domain) then
                 tmp = 0.
@@ -2032,7 +2033,7 @@ contains
                 call mp_reduce_sum(sar)
                 call mp_reduce_sum(tmp)
                 if ( sar > 0. ) then
-                   if (master) write(*,*) 'RH200 = ', tmp/sar
+                   if (master) write(*,'(2x, A, G)') 'RH200 = ', tmp/sar
                 endif
              endif
           endif
@@ -2246,7 +2247,7 @@ contains
           call get_height_field(isc, iec, jsc, jec, ngc, npz, Atm(n)%flagstruct%hydrostatic, Atm(n)%delz,  &
                                 wz, Atm(n)%pt, Atm(n)%q, Atm(n)%peln, zvir)
           if( prt_minmax )   &
-          call prt_mxm('ZTOP (m): ',wz(isc:iec,jsc:jec,1), isc, iec, jsc, jec, 0, 1, 1.E-3, Atm(n)%gridstruct%area_64, Atm(n)%domain)
+          call prt_mxm('ZTOP (m)',wz(isc:iec,jsc:jec,1), isc, iec, jsc, jec, 0, 1, 1.E-3, Atm(n)%gridstruct%area_64, Atm(n)%domain)
 
           if (id_hght3d > 0) then
              used = send_data(id_hght3d, 0.5*(wz(isc:iec,jsc:jec,1:npz)+wz(isc:iec,jsc:jec,2:npz+1)), Time)
@@ -2264,8 +2265,8 @@ contains
           endif
           used = send_data (id_slp, slp, Time)
              if( prt_minmax ) then
-                call prt_mxm('SLP (Pa): ', slp, isc, iec, jsc, jec, 0, 1, 1., Atm(n)%gridstruct%area_64, Atm(n)%domain)
-                call prt_maxmin('SLP', slp, isc, iec, jsc, jec, 0, 1, 1.)
+                call prt_mxm('SLP (Pa)', slp, isc, iec, jsc, jec, 0, 1, 1., Atm(n)%gridstruct%area_64, Atm(n)%domain)
+                !call prt_maxmin('SLP', slp, isc, iec, jsc, jec, 0, 1, 1.)
                 if ( .not. Atm(n)%gridstruct%bounded_domain ) then
 ! US Potential Landfall TCs (PLT):
                  do j=jsc,jec
@@ -2278,7 +2279,7 @@ contains
                        endif
                     enddo
                  enddo
-                 call prt_mxm('SLP_ATL (Pa): ', a2, isc, iec, jsc, jec, 0,   1, 1., Atm(n)%gridstruct%area_64, Atm(n)%domain)
+                 call prt_mxm('SLP_ATL (Pa)', a2, isc, iec, jsc, jec, 0,   1, 1., Atm(n)%gridstruct%area_64, Atm(n)%domain)
                 endif
              endif
           endif
@@ -2317,11 +2318,11 @@ contains
              if( prt_minmax ) then
 
                 if(id_h(k100)>0 .or. (id_h_plev>0 .and. k100>0))  &
-                call prt_mxm('Z100 (m): ',a3(isc:iec,jsc:jec,k100),isc,iec,jsc,jec,0,1,1.E-3,Atm(n)%gridstruct%area_64,Atm(n)%domain)
+                call prt_mxm('Z100 (m)',a3(isc:iec,jsc:jec,k100),isc,iec,jsc,jec,0,1,1.E-3,Atm(n)%gridstruct%area_64,Atm(n)%domain)
 
                 if(id_h(k500)>0 .or. (id_h_plev>0 .and. k500>0))  then
                    if (Atm(n)%gridstruct%bounded_domain) then
-                      call prt_mxm('Z500 (m): ',a3(isc:iec,jsc:jec,k500),isc,iec,jsc,jec,0,1,1.,Atm(n)%gridstruct%area_64,Atm(n)%domain)
+                      call prt_mxm('Z500 (m)',a3(isc:iec,jsc:jec,k500),isc,iec,jsc,jec,0,1,1.,Atm(n)%gridstruct%area_64,Atm(n)%domain)
                    else
                       call prt_gb_nh_sh('Z500', isc,iec, jsc,jec, a3(isc,jsc,k500), Atm(n)%gridstruct%area_64(isc:iec,jsc:jec),   &
                                         Atm(n)%gridstruct%agrid_64(isc:iec,jsc:jec,2))
@@ -2497,7 +2498,7 @@ contains
              if (idg(i)>0) used=send_data(idg(i), a3(isc:iec,jsc:jec,i), Time)
           enddo
           if ( id_t(k100)>0 .and. prt_minmax ) then
-             call prt_mxm('T100 (K): ', a3(isc:iec,jsc:jec,k100), isc, iec, jsc, jec, 0, 1, 1.,   &
+             call prt_mxm('T100 (K)', a3(isc:iec,jsc:jec,k100), isc, iec, jsc, jec, 0, 1, 1.,   &
                           Atm(n)%gridstruct%area_64, Atm(n)%domain)
              if (.not. Atm(n)%gridstruct%bounded_domain)  then
                 tmp = 0.
@@ -2515,14 +2516,14 @@ contains
                 call mp_reduce_sum(sar)
                 call mp_reduce_sum(tmp)
                 if ( sar > 0. ) then
-                   if (master) write(*,*) 'Tropical [10s,10n] mean T100 = ', tmp/sar
+                   if (master) write(*,'(2x, A, G)') 'Tropical [10s,10n] mean T100 = ', tmp/sar
                 else
                    if (master) write(*,*) 'Warning: problem computing tropical mean T100'
                 endif
              endif
           endif
           if ( id_t(k200) > 0 .and. prt_minmax ) then
-             call prt_mxm('T200 (K): ', a3(isc:iec,jsc:jec,k200), isc, iec, jsc, jec, 0, 1, 1.,   &
+             call prt_mxm('T200 (K)', a3(isc:iec,jsc:jec,k200), isc, iec, jsc, jec, 0, 1, 1.,   &
                           Atm(n)%gridstruct%area_64, Atm(n)%domain)
              if (.not. Atm(n)%gridstruct%bounded_domain) then
                 tmp = 0.
@@ -2539,7 +2540,7 @@ contains
                 call mp_reduce_sum(sar)
                 call mp_reduce_sum(tmp)
                 if ( sar > 0. ) then
-                   if (master) write(*,*) 'Tropical [-20.,20.] mean T200 = ', tmp/sar
+                   if (master) write(*,'(2x, A, G)') 'Tropical [-20.,20.] mean T200 = ', tmp/sar
                 endif
              endif
           endif
@@ -2568,7 +2569,7 @@ contains
               tot_mq  = g_sum( Atm(n)%domain, a2, isc, iec, jsc, jec, ngc, Atm(n)%gridstruct%area_64, 0)
               idiag%mtq_sum = idiag%mtq_sum + tot_mq
               if ( idiag%steps <= max_step ) idiag%mtq(idiag%steps) = tot_mq
-              if(master) write(*,*) 'Total (global) mountain torque (Hadleys)=', tot_mq
+              if(master) write(*,'(2x, A, G)') 'Total (global) mountain torque (Hadleys)=', tot_mq
           endif
        endif
 
@@ -2671,10 +2672,10 @@ contains
                 call mp_reduce_max(einf)
                 call mp_reduce_sum(e2)
                 if (master) then
-                   write(*,*) ' TERMINATOR TEST: '
-                   write(*,*) '      chlorine mass: ', qm/(4.*pi*RADIUS*RADIUS)
-                   write(*,*) '             L2 err: ', sqrt(e2)/sqrt(4.*pi*RADIUS*RADIUS)/qcly0
-                   write(*,*) '            max err: ', einf/qcly0
+                   write(*,'(2x, A)') ' TERMINATOR TEST: '
+                   write(*,'(2x, A, G)') '      chlorine mass: ', qm/(4.*pi*RADIUS*RADIUS)
+                   write(*,'(2x, A, G)') '             L2 err: ', sqrt(e2)/sqrt(4.*pi*RADIUS*RADIUS)/qcly0
+                   write(*,'(2x, A, G)') '            max err: ', einf/qcly0
                 endif
              endif
           endif
@@ -2847,16 +2848,16 @@ contains
             enddo
           if ( id_ctt>0 ) then
                used = send_data(id_ctt, a2, Time)
-               if(prt_minmax) call prt_mxm('Cloud_top_T (K): ', a2, isc, iec, jsc, jec, 0, 1, 1., Atm(n)%gridstruct%area_64, Atm(n)%domain)
+               if(prt_minmax) call prt_mxm('Cloud_top_T (K)', a2, isc, iec, jsc, jec, 0, 1, 1., Atm(n)%gridstruct%area_64, Atm(n)%domain)
           endif
           if ( id_ctp>0 ) then
                used = send_data(id_ctp, var1, Time)
-               if(prt_minmax) call prt_mxm('Cloud_top_P (mb): ', var1, isc, iec, jsc, jec, 0, 1, 1., Atm(n)%gridstruct%area_64, Atm(n)%domain)
+               if(prt_minmax) call prt_mxm('Cloud_top_P (mb)', var1, isc, iec, jsc, jec, 0, 1, 1., Atm(n)%gridstruct%area_64, Atm(n)%domain)
           endif
           deallocate ( var1 )
           if ( id_ctz>0 ) then
                used = send_data(id_ctz, var2, Time)
-               if(prt_minmax) call prt_mxm('Cloud_top_Z (m): ', var2, isc, iec, jsc, jec, 0, 1, 1., Atm(n)%gridstruct%area_64, Atm(n)%domain)
+               if(prt_minmax) call prt_mxm('Cloud_top_Z (m)', var2, isc, iec, jsc, jec, 0, 1, 1., Atm(n)%gridstruct%area_64, Atm(n)%domain)
           endif
           deallocate ( var2 )
        endif
@@ -2958,14 +2959,14 @@ contains
           enddo
           used=send_data(id_us, u2, Time)
           used=send_data(id_vs, v2, Time)
-          if(prt_minmax) call prt_mxm('Surf_Wind_Speed (m/s): ', a2, isc, iec, jsc, jec, 0, 1, 1., Atm(n)%gridstruct%area_64, Atm(n)%domain)
+          if(prt_minmax) call prt_mxm('Surf_Wind_Speed (m/s)', a2, isc, iec, jsc, jec, 0, 1, 1., Atm(n)%gridstruct%area_64, Atm(n)%domain)
        endif
 
        if(id_tb > 0) then
           a2(:,:) = Atm(n)%pt(isc:iec,jsc:jec,npz)
           used=send_data(id_tb, a2, Time)
           if( prt_minmax )   &
-          call prt_mxm('T_Bottom (K): ', a2, isc, iec, jsc, jec, 0, 1, 1., Atm(n)%gridstruct%area_64, Atm(n)%domain)
+          call prt_mxm('T_Bottom (K)', a2, isc, iec, jsc, jec, 0, 1, 1., Atm(n)%gridstruct%area_64, Atm(n)%domain)
        endif
 
        if(id_ua > 0) used=send_data(id_ua, Atm(n)%ua(isc:iec,jsc:jec,:), Time)
@@ -3087,13 +3088,13 @@ contains
 
           if (id_cape > 0) then
              if (prt_minmax) then
-                call prt_mxm(' CAPE (J/kg)', a2, isc,iec,jsc,jec, 0, 1, 1., Atm(n)%gridstruct%area_64, Atm(n)%domain)
+                call prt_mxm('CAPE (J/kg)', a2, isc,iec,jsc,jec, 0, 1, 1., Atm(n)%gridstruct%area_64, Atm(n)%domain)
              endif
              used=send_data(id_cape, a2, Time)
           endif
           if (id_cin > 0) then
              if (prt_minmax) then
-                call prt_mxm(' CIN (J/kg)', var2, isc,iec,jsc,jec, 0, 1, 1., Atm(n)%gridstruct%area_64, Atm(n)%domain)
+                call prt_mxm('CIN (J/kg)', var2, isc,iec,jsc,jec, 0, 1, 1., Atm(n)%gridstruct%area_64, Atm(n)%domain)
              endif
              used=send_data(id_cin, var2, Time)
           endif
@@ -3276,7 +3277,7 @@ contains
 
           if (prt_minmax) then
              call mpp_max(allmax)
-             if (master) write(*,*) 'max reflectivity = ', allmax, ' dBZ'
+             if (master) write(*,'(2x, A16, G, A4)') 'max reflectivity = ', allmax, ' dBZ'
           endif
 
           deallocate(a3)
@@ -3829,10 +3830,10 @@ contains
             used = send_data (id_tracer(itrac), Atm(n)%q(isc:iec,jsc:jec,:,itrac), Time )
           endif
           if (itrac .le. nq) then
-            if( prt_minmax ) call prt_mxm(trim(tname)//": ", Atm(n)%q(:,:,1,itrac),     &
+            if( prt_minmax ) call prt_mxm(trim(tname), Atm(n)%q(:,:,1,itrac),     &
                               isc, iec, jsc, jec, ngc, npz, 1., Atm(n)%gridstruct%area_64, Atm(n)%domain)
           else
-            if( prt_minmax ) call prt_mxm(trim(tname)//": ", Atm(n)%qdiag(:,:,1,itrac), &
+            if( prt_minmax ) call prt_mxm(trim(tname), Atm(n)%qdiag(:,:,1,itrac), &
                               isc, iec, jsc, jec, ngc, npz, 1., Atm(n)%gridstruct%area_64, Atm(n)%domain)
           endif
 !-------------------------------
@@ -4361,7 +4362,7 @@ contains
 
       real qmin, qmax
       integer i,j,k
-      character(len=12) :: display_name
+      character(len=16) :: display_name
       !mpp_root_pe doesn't appear to recognize nested grid
       master = (mpp_pe()==mpp_root_pe()) .or. is_master()
 
@@ -4386,9 +4387,9 @@ contains
       call mp_reduce_max(qmax)
 
       if(master) then
-         j = min(len(trim(qname)),12)
+         j = min(len(trim(qname)),16)
          display_name = qname(1:j)
-         write(*,'(A12, A, A, A5, G, A5, G)') display_name, ' ', trim(gn), ' max=', qmax*fac, 'min=',qmin*fac
+         write(*,'(2x, A16, A, A1, A5, G, A5, G)') display_name, trim(gn), ':', ' max=', qmax*fac, 'min=',qmin*fac
       endif
 
  end subroutine prt_maxmin
@@ -4406,7 +4407,7 @@ contains
 !
       real qmin, qmax, gmean
       integer i,j,k
-      character(len=8) :: display_name
+      character(len=16) :: display_name
 
       !mpp_root_pe doesn't appear to recognize nested grid
       master = (mpp_pe()==mpp_root_pe()) .or. is_master()
@@ -4438,7 +4439,7 @@ contains
       if(master) then
          j = min(len(trim(qname)),16)
          display_name = qname(1:j)
-         write(6,'(2x,A16,A,3G)') display_name, trim(gn), qmax*fac, qmin*fac, gmean*fac
+         write(6,'(2x,A16,A,A1,3G)') display_name, trim(gn), ':', qmax*fac, qmin*fac, gmean*fac
       endif
 
  end subroutine prt_mxm
@@ -4469,7 +4470,7 @@ contains
     snowwat = get_tracer_index (MODEL_ATMOS, 'snowwat')
     graupel = get_tracer_index (MODEL_ATMOS, 'graupel')
 
- if (master) write(*,*) '    Mass Diagnostics:'
+ if (master) write(*,*) ' Mass Diagnostics:'
 
  if ( nwat==0 ) then
       psmo = g_sum(domain, ps(is:ie,js:je), is, ie, js, je, n_g, area, 1)
@@ -4528,7 +4529,7 @@ contains
      write(*,*) '    Mean Dry Surface Pressure (mb)', trim(gn), ' = ',    0.01*psdry
      write(*,*) '    Total Water Vapor (kg/m**2)', trim(gn), ' = ',  qtot(sphum)*ginv
      if ( nwat> 2 ) then
-          write(*,*) '    Micro Phys water substances (kg/m**2) ---'
+          write(*,*) '  Micro Phys water substances (kg/m**2) '
           write(*,*) '    Total Cloud Water', trim(gn), ' = ', qtot(liq_wat)*ginv
           if (rainwat > 0) &
                write(*,*) '    Total Rain Water ', trim(gn), ' = ', qtot(rainwat)*ginv
@@ -4756,7 +4757,7 @@ contains
   real:: t_eq, t_nh, t_sh, t_gb
   real:: area_eq, area_nh, area_sh, area_gb
   integer:: i,j
-  character(len=12) :: display_name
+  character(len=16) :: display_name
 
      t_eq = 0.   ;    t_nh = 0.;    t_sh = 0.;    t_gb = 0.
      area_eq = 0.; area_nh = 0.; area_sh = 0.; area_gb = 0.
@@ -4791,11 +4792,10 @@ contains
      if (area_sh <= 1.) area_sh = -1.0
      if (area_eq <= 1.) area_eq = -1.0
      if (is_master()) then
-        j = min(len(trim(qname)),12)
+        j = min(len(trim(qname)),16)
         display_name = qname(1:j)
-        write(*,*) display_name, 'GB=',t_gb/area_gb, 'NH=',t_nh/area_nh
-        display_name=''
-        write(*,*) display_name, 'SH=',t_sh/area_sh, 'EQ=',t_eq/area_eq
+        write(6,'(2x,A16,A6,G,A4,G)') display_name, ': GB =',t_gb/area_gb, 'NH =',t_nh/area_nh
+        write(6,'(20x,A4,G,A4,G)') 'SH =',t_sh/area_sh, 'EQ =',t_eq/area_eq
      endif
 
  end subroutine prt_gb_nh_sh
@@ -5864,7 +5864,7 @@ end subroutine eqv_pot
   enddo
 
   psm = g_sum(domain, te, is, ie, js, je, 3, area_l, 1)
-  if( master ) write(*,*) 'Total_Energy (J/m**2 * E9) = ',  psm * 1.E-9
+  if( master ) write(*,'(2x,A,G)') 'Total Energy (J/m**2 * E9) = ',  psm * 1.E-9
 
   end subroutine nh_total_energy
 
