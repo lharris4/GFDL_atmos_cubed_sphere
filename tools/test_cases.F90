@@ -4922,8 +4922,8 @@ end subroutine terminator_tracers
                  r0 = max(250., 5.*max(dx_const, dy_const))
               else
                  pturb = dt_amp
-                 zc = dt_rad
-                 zr = dt_rad
+                 zc = 2000.
+                 zr = 2000.
                  r0 = dt_rad
               endif
            else if (test_case == -15) then
