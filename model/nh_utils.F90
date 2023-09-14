@@ -418,7 +418,7 @@ CONTAINS
                        dm, pm2, w2, dz2, pt(is1:ie1,j,1:km), ws(is1,j), .true.)
       else
            call SIM1_solver(dt, is1, ie1, km, rdgas, gama, gm2, cp2, akap, pe2,  &
-                            dm, pm2, pem, w2, dz2, pt(is1:ie1,j,1:km), ws(is1,j), p_fac, fast_tau_w_sec)
+                            dm, pm2, pem, w2, dz2, pt(is1:ie1,j,1:km), ws(is1,j), p_fac, j, fast_tau_w_sec)
       endif
 
       do k=2,km+1
@@ -552,11 +552,11 @@ CONTAINS
                        dm, pm2, w2, dz2, pt(is:ie,j,1:km), ws(is,j), .false.)
       elseif ( a_imp > 0.999 ) then
            call SIM1_solver(dt, is, ie, km, rdgas, gama, gm2, cp2, akap, pe2, dm,   &
-                            pm2, pem, w2, dz2, pt(is:ie,j,1:km), ws(is,j), p_fac, -1.)
+                            pm2, pem, w2, dz2, pt(is:ie,j,1:km), ws(is,j), p_fac, j, -1.)
       else
            call SIM_solver(dt, is, ie, km, rdgas, gama, gm2, cp2, akap, pe2, dm,  &
                            pm2, pem, w2, dz2, pt(is:ie,j,1:km), ws(is,j), &
-                           a_imp, p_fac, scale_m, -1.)
+                           a_imp, p_fac, scale_m, j, -1.)
       endif
 
       do k=1, km
@@ -1214,7 +1214,7 @@ CONTAINS
 
 
  subroutine SIM1_solver(dt,  is,  ie, km, rgas, gama, gm2, cp2, kappa, pe, dm2,   &
-                        pm2, pem, w2, dz2, pt2, ws, p_fac, fast_tau_w_sec)
+                        pm2, pem, w2, dz2, pt2, ws, p_fac, j, fast_tau_w_sec)
    integer, intent(in):: is, ie, km
    real,    intent(in):: dt, rgas, gama, kappa, p_fac, fast_tau_w_sec
    real, intent(in), dimension(is:ie,km):: dm2, pt2, pm2, gm2, cp2
@@ -1222,11 +1222,12 @@ CONTAINS
    real, intent(in ), dimension(is:ie,km+1):: pem
    real, intent(out)::  pe(is:ie,km+1)
    real, intent(inout), dimension(is:ie,km):: dz2, w2
+   integer, intent(in) :: j ! DEBUG
 ! Local
    real, dimension(is:ie,km  ):: aa, bb, dd, w1, g_rat, gam
    real, dimension(is:ie,km+1):: pp
    real, dimension(is:ie):: p1, bet
-   real t1g, rdt, capa1
+   real t1g, rdt, capa1, tmp
    integer i, k
 
 #ifdef MOIST_CAPPA
@@ -1325,6 +1326,22 @@ CONTAINS
        enddo
     endif
 
+!!! DEBUG CODE
+       do i=is,ie
+          if (ANY(w2(i,:) < -50)) then
+             print*, ' EXTREME DOWNDRAFT (SIM1_SOLVER)', i, j, mpp_pe(), ws(i)
+             do k=1,km
+#ifdef MOIST_CAPPA
+                tmp = exp(gm2(i,k)*log(-dm2(i,k)/dz2(i,k)*rgas*pt2(i,k)))
+#else
+                tmp = exp(gama*log(-dm2(i,k)/dz2(i,k)*rgas*pt2(i,k)))
+#endif
+                write(*,*) k, w2(i,k), w1(i,k), pe(i,k), dm2(i,k), dz2(i,k), tmp, pt2(i,k)*exp(cp2(i,k)*log(tmp))
+             enddo
+          endif
+       enddo
+!!! END DEBUG CODE
+
     do i=is, ie
        pe(i,1) = 0.
     enddo
@@ -1357,7 +1374,7 @@ CONTAINS
   end subroutine SIM1_solver
 
  subroutine SIM_solver(dt,  is,  ie, km, rgas, gama, gm2, cp2, kappa, pe2, dm2,   &
-                       pm2, pem, w2, dz2, pt2, ws, alpha, p_fac, scale_m, fast_tau_w_sec)
+                       pm2, pem, w2, dz2, pt2, ws, alpha, p_fac, scale_m, j, fast_tau_w_sec)
    integer, intent(in):: is, ie, km
    real, intent(in):: dt, rgas, gama, kappa, p_fac, alpha, scale_m, fast_tau_w_sec
    real, intent(in), dimension(is:ie,km):: dm2, pt2, pm2, gm2, cp2
@@ -1365,11 +1382,12 @@ CONTAINS
    real, intent(in ), dimension(is:ie,km+1):: pem
    real, intent(out):: pe2(is:ie,km+1)
    real, intent(inout), dimension(is:ie,km):: dz2, w2
+   integer, intent(in) :: j ! DEBUG
 ! Local
    real, dimension(is:ie,km  ):: aa, bb, dd, w1, wk, g_rat, gam
    real, dimension(is:ie,km+1):: pp
    real, dimension(is:ie):: p1, wk1, bet
-   real  beta, t2, t1g, rdt, ra, capa1
+   real  beta, t2, t1g, rdt, ra, capa1, tmp
    integer i, k
 
     beta = 1. - alpha
@@ -1483,6 +1501,22 @@ CONTAINS
           enddo
        enddo
     endif
+
+!!! DEBUG CODE
+       do i=is,ie
+          if (ANY(w2(i,:) < -50)) then
+             print*, ' EXTREME DOWNDRAFT (SIM_SOLVER)', i, j, mpp_pe(), ws(i)
+             do k=1,km
+#ifdef MOIST_CAPPA
+                tmp = exp(gm2(i,k)*log(-dm2(i,k)/dz2(i,k)*rgas*pt2(i,k)))
+#else
+                tmp = exp(gama*log(-dm2(i,k)/dz2(i,k)*rgas*pt2(i,k)))
+#endif
+                write(*,*) k, w2(i,k), w1(i,k), pe2(i,k), dm2(i,k), dz2(i,k), tmp, pt2(i,k)*exp(cp2(i,k)*log(tmp))
+             enddo
+          endif
+       enddo
+!!! END DEBUG CODE
 
     do i=is, ie
        pe2(i,1) = 0.
