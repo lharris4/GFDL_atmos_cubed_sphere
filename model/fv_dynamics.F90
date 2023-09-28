@@ -77,7 +77,7 @@ contains
                         ps, pe, pk, peln, pkz, phis, q_con, omga, ua, va, uc, vc,          &
                         ak, bk, mfx, mfy, cx, cy, ze0, hybrid_z, &
                         gridstruct, flagstruct, neststruct, idiag, bd, &
-                        parent_grid, domain, inline_mp, diss_est, time_total)
+                        parent_grid, domain, inline_mp, heat_source, diss_est, time_total)
 
     real, intent(IN) :: bdt  ! Large time-step
     real, intent(IN) :: consv_te
@@ -110,7 +110,8 @@ contains
     real, intent(inout) :: q(   bd%isd:bd%ied  ,bd%jsd:bd%jed  ,npz, ncnst) ! specific humidity and constituents
     real, intent(inout) :: delz(bd%is:,bd%js:,1:)   ! delta-height (m); non-hydrostatic only
     real, intent(inout) ::  ze0(bd%is:, bd%js: ,1:) ! height at edges (m); non-hydrostatic
-    real, intent(inout) :: diss_est(bd%isd:bd%ied  ,bd%jsd:bd%jed, npz) ! diffusion estimate for SKEB
+    real, intent(inout) :: diss_est(bd%is:bd%ie  ,bd%js:bd%je, npz) ! diffusion estimate for SKEB
+    real, intent(inout) :: heat_source(bd%isd:bd%ied  ,bd%jsd:bd%jed, npz) ! Dissipative heating
 ! ze0 no longer used
 
 !-----------------------------------------------------------------------
@@ -479,7 +480,7 @@ contains
                     u, v, w, delz, pt, q, delp, pe, pk, phis, ws, omga, ptop, pfull, ua, va,           &
                     uc, vc, mfx, mfy, cx, cy, pkz, peln, q_con, ak, bk, ks, &
                     gridstruct, flagstruct, neststruct, idiag, bd, &
-                    domain, n_map==1, i_pack, last_step, diss_est, &
+                    domain, n_map==1, i_pack, last_step, heat_source, diss_est, &
                     consv_te, te_2d, time_total)
       call timing_off('DYN_CORE')
 
@@ -538,7 +539,7 @@ contains
 #endif
 
          if( last_step .and. idiag%id_divg>0 ) then
-             used = send_data(idiag%id_divg, dp1, fv_time)
+             used = send_data(idiag%id_divg, dp1(is:ie,js:je,:), fv_time)
              if(flagstruct%fv_debug) call prt_mxm('divg',  dp1, is, ie, js, je, 0, npz, 1.,gridstruct%area_64, domain)
          endif
       endif

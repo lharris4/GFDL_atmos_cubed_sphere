@@ -93,7 +93,7 @@ contains
                      u,  v,  w, delz, pt, q, delp, pe, pk, phis, ws, omga, ptop, pfull, ua, va, &
                      uc, vc, mfx, mfy, cx, cy, pkz, peln, q_con, ak, bk, &
                      ks, gridstruct, flagstruct, neststruct, idiag, bd, domain, &
-                     init_step, i_pack, end_step, diss_est, consv, te0_2d, time_total)
+                     init_step, i_pack, end_step, heat_source, diss_est, consv, te0_2d, time_total)
     integer, intent(IN) :: npx
     integer, intent(IN) :: npy
     integer, intent(IN) :: npz
@@ -117,7 +117,8 @@ contains
     real, intent(inout) :: pt(  bd%isd:bd%ied  ,bd%jsd:bd%jed  ,npz)  ! temperature (K)
     real, intent(inout) :: delp(bd%isd:bd%ied  ,bd%jsd:bd%jed  ,npz)  ! pressure thickness (pascal)
     real, intent(inout) :: q(   bd%isd:bd%ied  ,bd%jsd:bd%jed  ,npz, nq)  !
-    real, intent(inout) :: diss_est(bd%isd:bd%ied  ,bd%jsd:bd%jed  ,npz)  !< skeb dissipation
+    real, intent(inout) :: heat_source(bd%isd:bd%ied,bd%jsd:bd%jed,npz)  !< dissipative heating rate
+    real, intent(inout) :: diss_est(bd%is:bd%ie  ,bd%js:bd%je  ,npz)  !< skeb dissipation
     real, intent(in), optional:: time_total  ! total time (seconds) since start
 
 !-----------------------------------------------------------------------
@@ -161,7 +162,7 @@ contains
     type(fv_diag_type),  intent(IN)            :: idiag
     type(domain2d),      intent(INOUT)         :: domain
 
-    real, allocatable, dimension(:,:,:):: pem, heat_source
+    real, allocatable, dimension(:,:,:):: pem
 ! Auto 1D & 2D arrays:
     real, dimension(bd%isd:bd%ied,bd%jsd:bd%jed):: ws3, z_rat
     real:: dp_ref(npz)
@@ -191,7 +192,7 @@ contains
     real    :: beta, beta_d, d_con_k, damp_w, damp_t, kgb, cv_air
     real    :: dt, dt2, rdt
     real    :: d2_divg
-    real    :: k1k, rdg, dtmp, delt
+    real    :: k1k, rdg, dtmp, dtmp2, delt
     real    :: recip_k_split_n_split
     real    :: reg_bc_update_time
     logical :: last_step, remap_step
@@ -277,7 +278,7 @@ contains
                allocate( dv(isd:ied+1,jsd:jed,  npz) )
                call init_ijk_mem(isd,ied+1, jsd,jed  , npz, dv, 0.)
           endif
-          call init_ijk_mem(isd,ied, jsd,jed, npz, diss_est, 0.)
+          call init_ijk_mem(is,ie, js,je, npz, diss_est, 0.)
       endif    ! end init_step
 
 ! Empty the "flux capacitors"
@@ -286,10 +287,7 @@ contains
     call init_ijk_mem(is, ie+1, jsd, jed,  npz, cx, 0.)
     call init_ijk_mem(isd, ied, js,  je+1, npz, cy, 0.)
 
-    if ( flagstruct%d_con > 1.0E-5 ) then
-         allocate( heat_source(isd:ied, jsd:jed, npz) )
-         call init_ijk_mem(isd, ied, jsd, jed, npz, heat_source, 0.)
-    endif
+    call init_ijk_mem(isd, ied, jsd, jed, npz, heat_source, 0.)
 
     if ( flagstruct%convert_ke .or. flagstruct%vtdm4> 1.E-4 ) then
          n_con = npz
@@ -792,11 +790,16 @@ contains
                enddo
             enddo
        endif
-       if ( flagstruct%d_con > 1.0E-5 .OR. flagstruct%do_diss_est ) then
-! Average horizontal "convergence" to cell center
+       if ( flagstruct%d_con > 1.0E-5) then
             do j=js,je
                do i=is,ie
                   heat_source(i,j,k) = heat_source(i,j,k) + heat_s(i,j)
+               enddo
+            enddo
+       endif
+       if ( flagstruct%d_con > 1.0E-5 .or. flagstruct%do_diss_est) then
+            do j=js,je
+               do i=is,ie
                   diss_est(i,j,k) = diss_est(i,j,k) + diss_e(i,j)
                enddo
             enddo
@@ -1275,7 +1278,7 @@ contains
 
       if ( do_diag_debug_dyn ) then
          call debug_column_dyn( pt, delp, delz, u, v, w, q, heat_source, cappa, akap, &
-              allocated(heat_source), npz, nq, sphum, flagstruct%nwat, zvir, ptop, hydrostatic, bd, fv_time, n_map, it)
+              npz, nq, sphum, flagstruct%nwat, zvir, ptop, hydrostatic, bd, fv_time, n_map, it)
       endif
 
 !-----------------------------------------------------
@@ -1295,6 +1298,7 @@ contains
 
   if ( n_con/=0 .and. flagstruct%d_con > 1.e-5 ) then
        nf_ke = min(3, flagstruct%nord+1)
+       !Requires heat_source(:,:,:) have haloes
        call del2_cubed(heat_source, cnst_0p20*gridstruct%da_min, gridstruct, domain, npx, npy, npz, nf_ke, bd)
 
 ! Note: pt here is cp*(Virtual_Temperature/pkz)
@@ -1313,7 +1317,8 @@ contains
              else
                 do i=is,ie
                      dtmp = heat_source(i,j,k) / (cp_air*delp(i,j,k))
-                pt(i,j,k) = pt(i,j,k) + sign(min(abs(bdt)*flagstruct%delt_max,abs(dtmp)), dtmp)/pkz(i,j,k)
+                     pt(i,j,k) = pt(i,j,k) + sign(min(abs(bdt)*flagstruct%delt_max,abs(dtmp)), dtmp)/pkz(i,j,k)
+                     heat_source(i,j,k) = dtmp
                 enddo
              endif
           enddo
@@ -1335,14 +1340,14 @@ contains
                 pkz(i,j,k) = exp( k1k*log(rdg*delp(i,j,k)/delz(i,j,k)*pt(i,j,k)) )
 #endif
                      dtmp = heat_source(i,j,k) / (cv_air*delp(i,j,k))
-                pt(i,j,k) = pt(i,j,k) + sign(min(delt, abs(dtmp)),dtmp) / pkz(i,j,k)
+                     pt(i,j,k) = pt(i,j,k) + sign(min(delt, abs(dtmp)),dtmp) / pkz(i,j,k)
+                     heat_source(i,j,k) = dtmp
              enddo
           enddo
        enddo
     endif
 
   endif
-  if (allocated(heat_source)) deallocate( heat_source ) !If ncon == 0 but d_con > 1.e-5, this would not be deallocated in earlier versions of the code
 
   if ((.not. hydrostatic) .and. w_forcing .and. present(time_total)) then
      call do_w_forcing(bd, npx, npy, npz, w, delz, phis, &

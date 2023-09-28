@@ -456,13 +456,13 @@ contains
        ic_ps  = register_static_field ( trim(field), 'ps_ic', axes(1:2),  &
                                          'initial surface pressure', 'Pa' )
        ic_ua = register_static_field ( trim(field), 'ua_ic', axes(1:3),        &
-            'zonal wind', 'm/sec' )
+            'initial zonal wind', 'm/s' )
        ic_va = register_static_field ( trim(field), 'va_ic', axes(1:3),        &
-            'meridional wind', 'm/sec' )
+            'initial meridional wind', 'm/s' )
        ic_ppt= register_static_field ( trim(field), 'ppt_ic', axes(1:3),        &
-            'potential temperature perturbation', 'K' )
+            'initial potential temperature', 'K' )
        ic_sphum  = register_static_field ( trim(field), 'sphum_ic', axes(1:2),  &
-                                         'initial surface pressure', 'Pa' )
+                                         'initial surface pressure', 'Pa' ) !not used
 
 !    end do
 
@@ -942,17 +942,19 @@ contains
              id_pt   = register_diag_field ( trim(field), 'temp', axes(1:3), Time,       &
                   'temperature', 'K', missing_value=missing_value, range=trange )
           endif
-          id_ppt  = register_diag_field ( trim(field), 'ppt', axes(1:3), Time,       &
-               'potential temperature perturbation', 'K', missing_value=missing_value )
+          id_ppt  = register_diag_field ( trim(field), 'theta', axes(1:3), Time,       &
+               'potential temperature', 'K', missing_value=missing_value )
           id_theta_e = register_diag_field ( trim(field), 'theta_e', axes(1:3), Time,       &
-               'theta_e', 'K', missing_value=missing_value )
+               'equivalent potential temperature', 'K', missing_value=missing_value )
           id_omga = register_diag_field ( trim(field), 'omega', axes(1:3), Time,      &
                'omega', 'Pa/s', missing_value=missing_value )
           idiag%id_divg  = register_diag_field ( trim(field), 'divg', axes(1:3), Time,      &
-               'mean divergence', '1/s', missing_value=missing_value )
+               'timestep-mean divergence', '1/s', missing_value=missing_value )
 ! diagnotic output for skeb testing
           id_diss = register_diag_field ( trim(field), 'diss_est', axes(1:3), Time,    &
-               'random', 'none', missing_value=missing_value, range=skrange )
+               'Dissipation estimate', 'J/kg/s', missing_value=missing_value, range=skrange )
+          id_diss_heat = register_diag_field ( trim(field), 'diss_heat', axes(1:3), Time,    &
+               'Dissipative heating rate', 'K/s', missing_value=missing_value )
 
           id_hght3d  = register_diag_field( trim(field), 'hght', axes(1:3), Time, &
                'height', 'm', missing_value=missing_value )
@@ -3698,6 +3700,7 @@ contains
        if(id_pt   > 0) used=send_data(id_pt  , Atm(n)%pt  (isc:iec,jsc:jec,:), Time)
        if(id_omga > 0) used=send_data(id_omga, Atm(n)%omga(isc:iec,jsc:jec,:), Time)
        if(id_diss > 0) used=send_data(id_diss, Atm(n)%diss_est(isc:iec,jsc:jec,:), Time)
+       if(id_diss_heat > 0) used=send_data(id_diss_heat, Atm(n)%heat_source(isc:iec,jsc:jec,:), Time)
 
        allocate( a3(isc:iec,jsc:jec,npz) )
        if(id_theta_e > 0 .or.                                              &

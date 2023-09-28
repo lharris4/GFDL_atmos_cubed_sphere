@@ -81,7 +81,7 @@ subroutine tracer_2d_1L(q, dp1, mfx, mfy, cx, cy, gridstruct, bd, domain, npx, n
       real :: xfx(bd%is:bd%ie+1,bd%jsd:bd%jed  ,npz)
       real :: yfx(bd%isd:bd%ied,bd%js: bd%je+1, npz)
       real :: cmax(npz)
-      real :: frac
+      real :: frac, rdt
       integer :: nsplt
       integer :: i,j,k,it,iq
 
@@ -276,6 +276,19 @@ subroutine tracer_2d_1L(q, dp1, mfx, mfy, cx, cy, gridstruct, bd, domain, npx, n
         endif
      enddo  ! time-split loop
   enddo    ! k-loop
+
+   if ( id_divg > 0 ) then
+        rdt = 1./(frac*dt)
+
+!$OMP parallel do default(none) shared(is,ie,js,je,npz,dp1,xfx,yfx,rarea,rdt)
+        do k=1,npz
+        do j=js,je
+           do i=is,ie
+              dp1(i,j,k) = (xfx(i+1,j,k)-xfx(i,j,k) + yfx(i,j+1,k)-yfx(i,j,k))*rarea(i,j)*rdt
+           enddo
+        enddo
+        enddo
+   endif
 
 end subroutine tracer_2d_1L
 
@@ -524,6 +537,18 @@ subroutine tracer_2d(q, dp1, mfx, mfy, cx, cy, gridstruct, bd, domain, npx, npy,
 
    enddo  ! nsplt
 
+   if ( id_divg > 0 ) then
+        rdt = 1./(frac*dt)
+
+!$OMP parallel do default(none) shared(is,ie,js,je,npz,dp1,xfx,yfx,rarea,rdt)
+        do k=1,npz
+        do j=js,je
+           do i=is,ie
+              dp1(i,j,k) = (xfx(i+1,j,k)-xfx(i,j,k) + yfx(i,j+1,k)-yfx(i,j,k))*rarea(i,j)*rdt
+           enddo
+        enddo
+        enddo
+   endif
 
 end subroutine tracer_2d
 
