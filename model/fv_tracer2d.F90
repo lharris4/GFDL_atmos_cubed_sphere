@@ -38,8 +38,6 @@ private
 
 public :: tracer_2d, tracer_2d_nested, tracer_2d_1L
 
-real, allocatable, dimension(:,:,:) :: nest_fx_west_accum, nest_fx_east_accum, nest_fx_south_accum, nest_fx_north_accum
-
 contains
 
 !-----------------------------------------------------------------------
@@ -81,7 +79,7 @@ subroutine tracer_2d_1L(q, dp1, mfx, mfy, cx, cy, gridstruct, bd, domain, npx, n
       real :: xfx(bd%is:bd%ie+1,bd%jsd:bd%jed  ,npz)
       real :: yfx(bd%isd:bd%ied,bd%js: bd%je+1, npz)
       real :: cmax(npz)
-      real :: frac, rdt
+      real :: frac(npz), rdt
       integer :: nsplt
       integer :: i,j,k,it,iq
 
@@ -148,7 +146,7 @@ subroutine tracer_2d_1L(q, dp1, mfx, mfy, cx, cy, gridstruct, bd, domain, npx, n
      endif
   enddo  ! k-loop
 
-    if (trdm>1.e-4) then
+   if (trdm>1.e-4) then
       call timing_on('COMM_TOTAL')
       call timing_on('COMM_TRACER')
       call complete_group_halo_update(dp1_pack, domain)
@@ -159,35 +157,37 @@ subroutine tracer_2d_1L(q, dp1, mfx, mfy, cx, cy, gridstruct, bd, domain, npx, n
   call mp_reduce_max(cmax,npz)
 
 !$OMP parallel do default(none) shared(is,ie,js,je,isd,ied,jsd,jed,npz,cx,xfx, &
-!$OMP                                  cy,yfx,mfx,mfy,cmax)   &
-!$OMP                          private(nsplt, frac)
+!$OMP                                  cy,yfx,mfx,mfy,cmax,frac)   &
+!$OMP                          private(nsplt)
   do k=1,npz
 
      nsplt = int(1. + cmax(k))
      if ( nsplt > 1 ) then
-        frac  = 1. / real(nsplt)
+        frac(k)  = 1. / real(nsplt)
         do j=jsd,jed
            do i=is,ie+1
-               cx(i,j,k) =  cx(i,j,k) * frac
-              xfx(i,j,k) = xfx(i,j,k) * frac
+               cx(i,j,k) =  cx(i,j,k) * frac(k)
+              xfx(i,j,k) = xfx(i,j,k) * frac(k)
            enddo
         enddo
         do j=js,je
            do i=is,ie+1
-              mfx(i,j,k) = mfx(i,j,k) * frac
+              mfx(i,j,k) = mfx(i,j,k) * frac(k)
            enddo
         enddo
         do j=js,je+1
            do i=isd,ied
-              cy(i,j,k) =  cy(i,j,k) * frac
-             yfx(i,j,k) = yfx(i,j,k) * frac
+              cy(i,j,k) =  cy(i,j,k) * frac(k)
+             yfx(i,j,k) = yfx(i,j,k) * frac(k)
            enddo
         enddo
         do j=js,je+1
            do i=is,ie
-              mfy(i,j,k) = mfy(i,j,k) * frac
+              mfy(i,j,k) = mfy(i,j,k) * frac(k)
            enddo
         enddo
+     else
+        frac(k) = 1.
      endif
 
   enddo
@@ -278,15 +278,16 @@ subroutine tracer_2d_1L(q, dp1, mfx, mfy, cx, cy, gridstruct, bd, domain, npx, n
   enddo    ! k-loop
 
    if ( id_divg > 0 ) then
-        rdt = 1./(frac*dt)
 
-!$OMP parallel do default(none) shared(is,ie,js,je,npz,dp1,xfx,yfx,rarea,rdt)
+!$OMP parallel do default(none) shared(is,ie,js,je,npz,dp1,xfx,yfx,rarea,frac,dt) &
+!$OMP                           private(rdt)
         do k=1,npz
-        do j=js,je
+           rdt = 1./(dt*frac(k))
+           do j=js,je
            do i=is,ie
               dp1(i,j,k) = (xfx(i+1,j,k)-xfx(i,j,k) + yfx(i,j+1,k)-yfx(i,j,k))*rarea(i,j)*rdt
            enddo
-        enddo
+           enddo
         enddo
    endif
 
@@ -326,7 +327,7 @@ subroutine tracer_2d(q, dp1, mfx, mfy, cx, cy, gridstruct, bd, domain, npx, npy,
       real :: yfx(bd%isd:bd%ied,bd%js: bd%je+1, npz)
       real :: cmax(npz)
       real :: c_global
-      real :: frac, rdt
+      real :: frac(npz), rdt
       integer :: ksplt(npz)
       integer :: nsplt
       integer :: i,j,k,it,iq
@@ -397,7 +398,6 @@ subroutine tracer_2d(q, dp1, mfx, mfy, cx, cy, gridstruct, bd, domain, npx, npy,
        ksplt(k) = 1
 
     enddo
-
 !--------------------------------------------------------------------------------
 
 ! Determine global nsplt:
@@ -419,8 +419,7 @@ subroutine tracer_2d(q, dp1, mfx, mfy, cx, cy, gridstruct, bd, domain, npx, npy,
 !--------------------------------------------------------------------------------
 
     if( nsplt /= 1 ) then
-!$OMP parallel do default(none) shared(is,ie,js,je,isd,ied,jsd,jed,npz,cx,xfx,mfx,cy,yfx,mfy,cmax,nsplt,ksplt) &
-!$OMP                          private( frac )
+!$OMP parallel do default(none) shared(is,ie,js,je,isd,ied,jsd,jed,npz,cx,xfx,mfx,cy,yfx,mfy,cmax,nsplt,ksplt,frac)
         do k=1,npz
 
 #ifdef GLOBAL_CFL
@@ -428,33 +427,37 @@ subroutine tracer_2d(q, dp1, mfx, mfy, cx, cy, gridstruct, bd, domain, npx, npy,
 #else
            ksplt(k) = int(1. + cmax(k))
 #endif
-           frac  = 1. / real(ksplt(k))
+           frac(k)  = 1. / real(ksplt(k))
 
            do j=jsd,jed
               do i=is,ie+1
-                 cx(i,j,k) =   cx(i,j,k) * frac
-                 xfx(i,j,k) = xfx(i,j,k) * frac
+                 cx(i,j,k) =   cx(i,j,k) * frac(k)
+                 xfx(i,j,k) = xfx(i,j,k) * frac(k)
               enddo
            enddo
            do j=js,je
               do i=is,ie+1
-                 mfx(i,j,k) = mfx(i,j,k) * frac
+                 mfx(i,j,k) = mfx(i,j,k) * frac(k)
               enddo
            enddo
 
            do j=js,je+1
               do i=isd,ied
-                 cy(i,j,k) =  cy(i,j,k) * frac
-                yfx(i,j,k) = yfx(i,j,k) * frac
+                 cy(i,j,k) =  cy(i,j,k) * frac(k)
+                yfx(i,j,k) = yfx(i,j,k) * frac(k)
               enddo
            enddo
            do j=js,je+1
               do i=is,ie
-                mfy(i,j,k) = mfy(i,j,k) * frac
+                mfy(i,j,k) = mfy(i,j,k) * frac(k)
               enddo
            enddo
 
         enddo
+    else
+       do k=1,npz
+          frac(k) = 1.0
+       enddo
     endif
 
     if (trdm>1.e-4) then
@@ -538,15 +541,16 @@ subroutine tracer_2d(q, dp1, mfx, mfy, cx, cy, gridstruct, bd, domain, npx, npy,
    enddo  ! nsplt
 
    if ( id_divg > 0 ) then
-        rdt = 1./(frac*dt)
 
-!$OMP parallel do default(none) shared(is,ie,js,je,npz,dp1,xfx,yfx,rarea,rdt)
+!$OMP parallel do default(none) shared(is,ie,js,je,npz,dp1,xfx,yfx,rarea,frac,dt) &
+!$OMP                           private(rdt)
         do k=1,npz
-        do j=js,je
+           rdt = 1./(dt*frac(k))
+           do j=js,je
            do i=is,ie
               dp1(i,j,k) = (xfx(i+1,j,k)-xfx(i,j,k) + yfx(i,j+1,k)-yfx(i,j,k))*rarea(i,j)*rdt
            enddo
-        enddo
+           enddo
         enddo
    endif
 
@@ -812,7 +816,7 @@ subroutine tracer_2d_nested(q, dp1, mfx, mfy, cx, cy, gridstruct, bd, domain, np
    enddo  ! nsplt
 
    if ( id_divg > 0 ) then
-        rdt = 1./(frac*dt)
+        rdt = 1./dt
 
 !$OMP parallel do default(none) shared(is,ie,js,je,npz,dp1,xfx,yfx,rarea,rdt)
         do k=1,npz
