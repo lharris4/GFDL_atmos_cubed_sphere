@@ -118,7 +118,7 @@ contains
     real, intent(inout) :: delp(bd%isd:bd%ied  ,bd%jsd:bd%jed  ,npz)  ! pressure thickness (pascal)
     real, intent(inout) :: q(   bd%isd:bd%ied  ,bd%jsd:bd%jed  ,npz, nq)  !
     real, intent(inout) :: heat_source(bd%isd:bd%ied,bd%jsd:bd%jed,npz)  !< dissipative heating rate
-    real, intent(inout) :: diss_est(bd%is:bd%ie  ,bd%js:bd%je  ,npz)  !< skeb dissipation
+    real, intent(inout) :: diss_est(bd%isd:bd%ied,bd%jsd:bd%jed,npz)  !< skeb dissipation
     real, intent(in), optional:: time_total  ! total time (seconds) since start
 
 !-----------------------------------------------------------------------
@@ -278,7 +278,7 @@ contains
                allocate( dv(isd:ied+1,jsd:jed,  npz) )
                call init_ijk_mem(isd,ied+1, jsd,jed  , npz, dv, 0.)
           endif
-          call init_ijk_mem(is,ie, js,je, npz, diss_est, 0.)
+          call init_ijk_mem(isd,ied, jsd,jed, npz, diss_est, 0.)
       endif    ! end init_step
 
 ! Empty the "flux capacitors"
@@ -1340,9 +1340,9 @@ contains
 #else
                 pkz(i,j,k) = exp( k1k*log(rdg*delp(i,j,k)/delz(i,j,k)*pt(i,j,k)) )
 #endif
-                     dtmp = max(0.,heat_source(i,j,k) / (cv_air*delp(i,j,k))) !added limiter to avoid "dissipative cooling"
-                     pt(i,j,k) = pt(i,j,k) + sign(min(delt, abs(dtmp)),dtmp) / pkz(i,j,k)
-                     heat_source(i,j,k) = dtmp
+                dtmp = max(0.,heat_source(i,j,k) / (cv_air*delp(i,j,k))) !added limiter to avoid "dissipative cooling"
+                pt(i,j,k) = pt(i,j,k) + sign(min(delt, abs(dtmp)),dtmp) / pkz(i,j,k)
+                heat_source(i,j,k) = dtmp
              enddo
           enddo
        enddo

@@ -110,7 +110,7 @@ contains
     real, intent(inout) :: q(   bd%isd:bd%ied  ,bd%jsd:bd%jed  ,npz, ncnst) ! specific humidity and constituents
     real, intent(inout) :: delz(bd%is:,bd%js:,1:)   ! delta-height (m); non-hydrostatic only
     real, intent(inout) ::  ze0(bd%is:, bd%js: ,1:) ! height at edges (m); non-hydrostatic
-    real, intent(inout) :: diss_est(bd%is:bd%ie  ,bd%js:bd%je, npz) ! diffusion estimate for SKEB
+    real, intent(inout) :: diss_est(bd%isd:bd%ied,bd%jsd:bd%jed,npz) ! diffusion estimate for SKEB
     real, intent(inout) :: heat_source(bd%isd:bd%ied  ,bd%jsd:bd%jed, npz) ! Dissipative heating
 ! ze0 no longer used
 
