@@ -1889,6 +1889,7 @@ endif
          'Physics U tendency', 'm/s/s', missing_value=missing_value)
     id_dvdt = register_diag_field( mod_name, 'dvdt', axes(1:3), time, &
          'Physics V tendency', 'm/s/s', missing_value=missing_value)
+    !dtdt does NOT include heating from kessler
     id_dtdt = register_diag_field( mod_name, 'dtdt', axes(1:3), time, &
          'Physics T tendency', 'K/s', missing_value=missing_value)
     id_dqdt = register_diag_field( mod_name, 'dqdt', axes(1:3), time, &
