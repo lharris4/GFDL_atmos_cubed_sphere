@@ -5046,7 +5046,7 @@ end subroutine terminator_tracers
 ! *** Add Initial perturbation ***
         if (bubble_do) then
            pturb = 2.
-           if (dt_amp > 0. ) pturb = dt_amp 
+           if (dt_amp > 0. ) pturb = dt_amp
            r0 = dt_rad ! 10.e3
            zc = 1.4e3         ! center of bubble  from surface
            icenter = (npx-1)/2 + 1
