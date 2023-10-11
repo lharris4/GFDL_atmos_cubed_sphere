@@ -949,6 +949,8 @@ contains
           id_omga = register_diag_field ( trim(field), 'omega', axes(1:3), Time,      &
                'omega', 'Pa/s', missing_value=missing_value )
           idiag%id_divg  = register_diag_field ( trim(field), 'divg', axes(1:3), Time,      &
+               'instantaneous divergence', '1/s', missing_value=missing_value )
+          idiag%id_divg_mean  = register_diag_field ( trim(field), 'divg_mean', axes(1:3), Time,      &
                'timestep-mean divergence', '1/s', missing_value=missing_value )
 ! diagnotic output for skeb testing
           id_diss = register_diag_field ( trim(field), 'diss_est', axes(1:3), Time,    &
@@ -2999,7 +3001,7 @@ contains
        endif
 
        if(id_delp_dycore > 0) used=send_data(id_delp_dycore, Atm(n)%delp(isc:iec,jsc:jec,:), Time)
-       
+
 #ifdef GFS_PHYS
        if(id_delp > 0 .or. id_cape > 0 .or. id_cin > 0 .or. &
             ((.not. Atm(n)%flagstruct%hydrostatic) .and. (id_pfnh > 0 .or. id_ppnh > 0)) .or. &
@@ -4177,7 +4179,6 @@ contains
       enddo
 
  end subroutine get_vorticity
-
 
  subroutine get_height_field(is, ie, js, je, ng, km, hydrostatic, delz, wz, pt, q, peln, zvir)
   integer, intent(in):: is, ie, js, je, km, ng

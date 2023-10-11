@@ -505,17 +505,17 @@ contains
        !!! CLEANUP: merge these two calls?
        if (gridstruct%bounded_domain) then
          call tracer_2d_nested(q, dp1, mfx, mfy, cx, cy, gridstruct, bd, domain, npx, npy, npz, nq,    &
-                        flagstruct%hord_tr, q_split, mdt, idiag%id_divg, i_pack(10), i_pack(13), &
+                        flagstruct%hord_tr, q_split, mdt, idiag%id_divg_mean, i_pack(10), i_pack(13), &
                         flagstruct%nord_tr, flagstruct%trdm2, &
                         k_split, neststruct, parent_grid, n_map, flagstruct%lim_fac)
        else
          if ( flagstruct%z_tracer ) then
             call tracer_2d_1L(q, dp1, mfx, mfy, cx, cy, gridstruct, bd, domain, npx, npy, npz, nq,    &
-                 flagstruct%hord_tr, q_split, mdt, idiag%id_divg, i_pack(10), i_pack(13), &
+                 flagstruct%hord_tr, q_split, mdt, idiag%id_divg_mean, i_pack(10), i_pack(13), &
                  flagstruct%nord_tr, flagstruct%trdm2, flagstruct%lim_fac)
          else
             call tracer_2d(q, dp1, mfx, mfy, cx, cy, gridstruct, bd, domain, npx, npy, npz, nq,    &
-                 flagstruct%hord_tr, q_split, mdt, idiag%id_divg, i_pack(10), i_pack(13), &
+                 flagstruct%hord_tr, q_split, mdt, idiag%id_divg_mean, i_pack(10), i_pack(13), &
                  flagstruct%nord_tr, flagstruct%trdm2, flagstruct%lim_fac)
          endif
        endif
@@ -538,9 +538,9 @@ contains
      endif
 #endif
 
-         if( last_step .and. idiag%id_divg>0 ) then
-             used = send_data(idiag%id_divg, dp1(is:ie,js:je,:), fv_time)
-             if(flagstruct%fv_debug) call prt_mxm('divg',  dp1, is, ie, js, je, 0, npz, 1.,gridstruct%area_64, domain)
+         if( last_step .and. idiag%id_divg_mean>0 ) then
+             used = send_data(idiag%id_divg_mean, dp1(is:ie,js:je,:), fv_time)
+             if(flagstruct%fv_debug) call prt_mxm('divg_mean',  dp1, is, ie, js, je, 0, npz, 1.,gridstruct%area_64, domain)
          endif
       endif
 

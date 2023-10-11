@@ -665,7 +665,7 @@ contains
 !$OMP                                  is,ie,js,je,isd,ied,jsd,jed,omga,delp,gridstruct,npx,npy,  &
 !$OMP                                  ng,zh,vt,ptc,pt,u,v,w,uc,vc,ua,va,divgd,mfx,mfy,cx,cy,     &
 !$OMP                                  crx,cry,xfx,yfx,q_con,zvir,sphum,nq,q,dt,bd,rdt,iep1,jep1, &
-!$OMP                                  heat_source,diss_est,radius)                     &
+!$OMP                                  heat_source,diss_est,radius,idiag,end_step)                &
 !$OMP                          private(nord_k, nord_w, nord_t, damp_w, damp_t, d2_divg,   &
 !$OMP                          d_con_k,kgb, hord_m, hord_v, hord_t, hord_p, wk, heat_s, diss_e, z_rat)
     do k=1,npz
@@ -782,6 +782,14 @@ contains
                   omga(i,j,k) = omga(i,j,k)*(xfx(i,j,k)-xfx(i+1,j,k)+yfx(i,j,k)-yfx(i,j+1,k))*gridstruct%rarea(i,j)*rdt
                enddo
             enddo
+       endif
+
+       if ((idiag%id_divg > 0) .and. end_step ) then
+          do j=js,je
+             do i=is,ie
+                divgd(i,j,k) = (xfx(i+1,j,k)-xfx(i,j,k)+yfx(i,j+1,k)-yfx(i,j,k))*gridstruct%rarea(i,j)*rdt
+             enddo
+          enddo
        endif
 
        if ( flagstruct%d_ext > 0. ) then
@@ -919,7 +927,7 @@ contains
          endif
     endif
 
-        if (idiag%id_ws>0 .and. last_step) then
+        if (idiag%id_ws>0 .and. end_step) then
 !           call prt_mxm('WS', ws, is, ie, js, je, 0, 1, 1., gridstruct%area_64, domain)
             used=send_data(idiag%id_ws, ws, fv_time)
         endif
@@ -1213,7 +1221,8 @@ contains
             enddo
          enddo
       endif
-      if (idiag%id_ws>0 .and. hydrostatic) then
+      !this may be meaningless since delz not init for hydro
+      if (idiag%id_ws>0 .and. hydrostatic .and. end_step) then
 !$OMP parallel do default(none) shared(is,ie,js,je,npz,ws,delz,delp,omga)
           do j=js,je
              do i=is,ie
@@ -1227,8 +1236,6 @@ contains
 #endif
 
     if (gridstruct%nested) then
-
-
 
 #ifndef SW_DYNAMICS
          if (.not. hydrostatic) then
@@ -1356,6 +1363,11 @@ contains
   endif
 
   if ( end_step ) then
+
+     if (idiag%id_divg > 0) then
+        used=send_data(idiag%id_divg, divgd(is:ie,js:je,:), fv_time)
+     endif
+
     deallocate(    gz )
     deallocate(   ptc )
     deallocate(   crx )

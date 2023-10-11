@@ -47,7 +47,7 @@ contains
 
 
 subroutine tracer_2d_1L(q, dp1, mfx, mfy, cx, cy, gridstruct, bd, domain, npx, npy, npz,   &
-                        nq,  hord, q_split, dt, id_divg, q_pack, dp1_pack, nord_tr, trdm, lim_fac)
+                        nq,  hord, q_split, dt, id_divg_mean, q_pack, dp1_pack, nord_tr, trdm, lim_fac)
 
       type(fv_grid_bounds_type), intent(IN) :: bd
       integer, intent(IN) :: npx
@@ -56,7 +56,7 @@ subroutine tracer_2d_1L(q, dp1, mfx, mfy, cx, cy, gridstruct, bd, domain, npx, n
       integer, intent(IN) :: nq    ! number of tracers to be advected
       integer, intent(IN) :: hord, nord_tr
       integer, intent(IN) :: q_split
-      integer, intent(IN) :: id_divg
+      integer, intent(IN) :: id_divg_mean
       real   , intent(IN) :: dt, trdm
       real   , intent(IN) :: lim_fac
       type(group_halo_update_type), intent(inout) :: q_pack, dp1_pack
@@ -277,7 +277,7 @@ subroutine tracer_2d_1L(q, dp1, mfx, mfy, cx, cy, gridstruct, bd, domain, npx, n
      enddo  ! time-split loop
   enddo    ! k-loop
 
-   if ( id_divg > 0 ) then
+   if ( id_divg_mean > 0 ) then
 
 !$OMP parallel do default(none) shared(is,ie,js,je,npz,dp1,xfx,yfx,rarea,frac,dt) &
 !$OMP                           private(rdt)
@@ -295,7 +295,7 @@ end subroutine tracer_2d_1L
 
 
 subroutine tracer_2d(q, dp1, mfx, mfy, cx, cy, gridstruct, bd, domain, npx, npy, npz,   &
-                     nq,  hord, q_split, dt, id_divg, q_pack, dp1_pack, nord_tr, trdm, lim_fac)
+                     nq,  hord, q_split, dt, id_divg_mean, q_pack, dp1_pack, nord_tr, trdm, lim_fac)
 
       type(fv_grid_bounds_type), intent(IN) :: bd
       integer, intent(IN) :: npx
@@ -304,7 +304,7 @@ subroutine tracer_2d(q, dp1, mfx, mfy, cx, cy, gridstruct, bd, domain, npx, npy,
       integer, intent(IN) :: nq    ! number of tracers to be advected
       integer, intent(IN) :: hord, nord_tr
       integer, intent(IN) :: q_split
-      integer, intent(IN) :: id_divg
+      integer, intent(IN) :: id_divg_mean
       real   , intent(IN) :: dt, trdm
       real   , intent(IN) :: lim_fac
       type(group_halo_update_type), intent(inout) :: q_pack, dp1_pack
@@ -540,7 +540,7 @@ subroutine tracer_2d(q, dp1, mfx, mfy, cx, cy, gridstruct, bd, domain, npx, npy,
 
    enddo  ! nsplt
 
-   if ( id_divg > 0 ) then
+   if ( id_divg_mean > 0 ) then
 
 !$OMP parallel do default(none) shared(is,ie,js,je,npz,dp1,xfx,yfx,rarea,frac,dt) &
 !$OMP                           private(rdt)
@@ -558,7 +558,7 @@ end subroutine tracer_2d
 
 
 subroutine tracer_2d_nested(q, dp1, mfx, mfy, cx, cy, gridstruct, bd, domain, npx, npy, npz,   &
-                     nq,  hord, q_split, dt, id_divg, q_pack, dp1_pack, nord_tr, trdm, &
+                     nq,  hord, q_split, dt, id_divg_mean, q_pack, dp1_pack, nord_tr, trdm, &
                      k_split, neststruct, parent_grid, n_map, lim_fac)
 
       type(fv_grid_bounds_type), intent(IN) :: bd
@@ -568,7 +568,7 @@ subroutine tracer_2d_nested(q, dp1, mfx, mfy, cx, cy, gridstruct, bd, domain, np
       integer, intent(IN) :: nq    ! number of tracers to be advected
       integer, intent(IN) :: hord, nord_tr
       integer, intent(IN) :: q_split, k_split, n_map
-      integer, intent(IN) :: id_divg
+      integer, intent(IN) :: id_divg_mean
       real   , intent(IN) :: dt, trdm
       real   , intent(IN) :: lim_fac
       type(group_halo_update_type), intent(inout) :: q_pack, dp1_pack
@@ -815,7 +815,7 @@ subroutine tracer_2d_nested(q, dp1, mfx, mfy, cx, cy, gridstruct, bd, domain, np
 
    enddo  ! nsplt
 
-   if ( id_divg > 0 ) then
+   if ( id_divg_mean > 0 ) then
         rdt = 1./dt
 
 !$OMP parallel do default(none) shared(is,ie,js,je,npz,dp1,xfx,yfx,rarea,rdt)
