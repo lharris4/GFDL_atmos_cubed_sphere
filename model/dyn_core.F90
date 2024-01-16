@@ -1317,7 +1317,7 @@ contains
 !$OMP parallel do default(none) shared(flagstruct,is,ie,js,je,n_con,pt,heat_source,delp,pkz,bdt) &
 !$OMP                          private(dtmp)
        do j=js,je
-          do k=1,n_con  ! n_con is usually less than 3;
+          do k=1,n_con  ! n_con is usually less than 3 unless convert_ke or vtdm4 are enabled; then n_con = npz
              if ( k<3 ) then
                 do i=is,ie
                    pt(i,j,k) = pt(i,j,k) + heat_source(i,j,k)/(cp_air*delp(i,j,k)*pkz(i,j,k))
