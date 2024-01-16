@@ -1365,7 +1365,7 @@ CONTAINS
                 tmp = exp(gama*log(-dm2(i,k)/dz2(i,k)*rgas*pt2(i,k)))
 #endif
                 !kindex, wafter, wbefore, nh p', dm, dz, full pressure, temperature
-                write(*,*) k, w2(i,k), w1(i,k), pe(i,k), dm2(i,k), dz2(i,k), tmp, pt2(i,k)*exp(cp2(i,k)*log(tmp))
+                write(*,'(I, 7G)') k, w2(i,k), w1(i,k), pe(i,k), dm2(i,k), dz2(i,k), tmp, pt2(i,k)*exp(cp2(i,k)*log(tmp))
              enddo
           endif
        enddo
@@ -1544,7 +1544,7 @@ CONTAINS
 #else
                 tmp = exp(gama*log(-dm2(i,k)/dz2(i,k)*rgas*pt2(i,k)))
 #endif
-                write(*,*) k, w2(i,k), w1(i,k), pe2(i,k), dm2(i,k), dz2(i,k), tmp, pt2(i,k)*exp(cp2(i,k)*log(tmp))
+                write(*,'(I, 7G)') k, w2(i,k), w1(i,k), pe2(i,k), dm2(i,k), dz2(i,k), tmp, pt2(i,k)*exp(cp2(i,k)*log(tmp))
              enddo
           endif
        enddo
