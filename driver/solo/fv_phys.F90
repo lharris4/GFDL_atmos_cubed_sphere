@@ -319,14 +319,14 @@ contains
            if (allocated(sg_diag%u_dt)) then
               do j=js, je
               do i=is, ie
-                 sg_diag%u_dt(i,j,k) = ua(i,j,k)
+                 sg_diag%u_dt(i,j,k) = 0.
               enddo
               enddo
            endif
            if (allocated(sg_diag%v_dt)) then
               do j=js, je
               do i=is, ie
-                 sg_diag%v_dt(i,j,k) = va(i,j,k)
+                 sg_diag%v_dt(i,j,k) = 0.
               enddo
               enddo
            endif
@@ -352,19 +352,19 @@ contains
                            hydrostatic, w, delz, u_dt, v_dt, t_dt, q_dt, flagstruct%n_sponge )
 
         rdt = 1./pdt
-!$OMP parallel do default(none) shared(isd,ied,jsd,jed,npz,is,ie,js,je,sphum,rdt,sg_diag,ua,va,pt,q)
+!$OMP parallel do default(none) shared(isd,ied,jsd,jed,npz,is,ie,js,je,sphum,rdt,sg_diag,ua,va,pt,q,u_dt,v_dt)
         do k=1, npz
            if (allocated(sg_diag%u_dt)) then
               do j=js, je
               do i=is, ie
-                 sg_diag%u_dt(i,j,k) = (ua(i,j,k) - sg_diag%u_dt(i,j,k))*rdt
+                 sg_diag%u_dt(i,j,k) = u_dt(i,j,k)
               enddo
               enddo
            endif
            if (allocated(sg_diag%v_dt)) then
               do j=js, je
               do i=is, ie
-                 sg_diag%v_dt(i,j,k) = (va(i,j,k) - sg_diag%v_dt(i,j,k))*rdt
+                 sg_diag%v_dt(i,j,k) = v_dt(i,j,k)
               enddo
               enddo
            endif
@@ -383,6 +383,7 @@ contains
              enddo
           endif
        enddo
+       no_tendency = .false.
 
     endif
 

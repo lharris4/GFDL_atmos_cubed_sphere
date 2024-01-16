@@ -157,13 +157,14 @@ contains
      else
         zvir = rvgas/rdgas - 1.
         Atm(mygrid)%flagstruct%moist_phys = .true.
+        call gfdl_mp_init (input_nml_file, stdlog(), Atm(mygrid)%flagstruct%hydrostatic)
+     endif
+     if (Atm(mygrid)%flagstruct%adiabatic .or. Atm(mygrid)%flagstruct%fv_sg_adj > 0.) then
         call fv_phys_init(isc,iec,jsc,jec,Atm(mygrid)%npz,Atm(mygrid)%flagstruct%nwat, Atm(mygrid)%ts, Atm(mygrid)%pt(isc:iec,jsc:jec,:),   &
                           Time, axes, Atm(mygrid)%gridstruct%agrid(isc:iec,jsc:jec,2))
      endif
 
-     if (.not. Atm(mygrid)%flagstruct%adiabatic) call gfdl_mp_init (input_nml_file, stdlog(), Atm(mygrid)%flagstruct%hydrostatic)
-     
-     
+
      if ( Atm(mygrid)%flagstruct%nudge )    &
           call fv_nwp_nudge_init( Time, axes, Atm(mygrid)%npz, zvir, Atm(mygrid)%ak, Atm(mygrid)%bk, Atm(mygrid)%ts, &
           Atm(mygrid)%phis, Atm(mygrid)%gridstruct, Atm(mygrid)%ks, Atm(mygrid)%npx, Atm(mygrid)%neststruct, Atm(mygrid)%bd)
