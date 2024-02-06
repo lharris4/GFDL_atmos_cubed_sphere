@@ -123,7 +123,7 @@
       logical :: no_wind = .false.
       logical :: gaussian_dt = .false.
       logical :: do_marine_sounding = .false.
-      real    :: dt_amp = -1.0 !  2.1   ! K
+      real    :: dt_amp = 2.1   ! K
       real    :: dt_rad = 2000. !m
       real    :: alpha = 0.0
       integer :: Nsolitons = 2
@@ -4582,8 +4582,8 @@ end subroutine terminator_tracers
         real, dimension(npz+1):: pk1, pe1
         real :: us0 = 30.
         real :: dist, dist0, r0, f0_const, prf, rgrav
-        real :: ptmp, ze, zc, zm, zr, utmp, vtmp, xr, yr, tmp
-        real :: t00, p00, xmax, xc, yc, xx, yy, pk0, pturb, ztop
+        real :: ptmp, ze, zc, zm, utmp, vtmp, xr, yr, tmp
+        real :: t00, p00, xmax, xc, xx, yy, pk0, pturb, ztop
         real :: ze1(npz+1)
         real:: dz1(npz), qc1(npz), qv1(npz)
         real :: gz(bd%isd:bd%ied,bd%jsd:bd%jed,npz+1)
@@ -4761,9 +4761,6 @@ end subroutine terminator_tracers
                jcenter = (npy-1)/2
                zc = 1500. !1500 m center AGL
 
-               pturb = 2.1
-               if (dt_amp > 0.) pturb = dt_amp
-
                do j=js,je
                   do i=is,ie
                      dist0 = (real(i-icenter)*dx_const/dt_rad)**2 + (real(j-jcenter)*dy_const/dt_rad)**2
@@ -4821,28 +4818,76 @@ end subroutine terminator_tracers
          !--------------------------------------------------------------
 #endif
 
-        case ( 15,16,-15 )
+        case ( 15 )
+!---------------------------
+! Doubly periodic warm bubble
+!---------------------------
+           t00 = 250.
+
+           u(:,:,:) = 0.
+           v(:,:,:) = 0.
+          pt(:,:,:) = t00
+          q(:,:,:,:) = 1.E-6
+
+          if ( .not. hydrostatic ) w(:,:,:) = 0.
+
+           do j=jsd,jed
+              do i=isd,ied
+                 phis(i,j) = 0.
+                   ps(i,j) = 1000.E2
+              enddo
+           enddo
+
+           do k=1,npz
+              do j=jsd,jed
+                 do i=isd,ied
+                    delp(i,j,k) = ak(k+1)-ak(k) + ps(i,j)*(bk(k+1)-bk(k))
+                 enddo
+              enddo
+           enddo
+
+
+
+          call p_var(npz, is, ie, js, je, ptop, ptop_min, delp, delz, pt, ps,   &
+                     pe, peln, pk, pkz, kappa, q, ng, ncnst, area, dry_mass, .false., .false., &
+                     moist_phys, .false., nwat, domain, flagstruct%adiabatic, .true.)
+
+! *** Add Initial perturbation ***
+           r0 = 5.*max(dx_const, dy_const)
+           zc = 0.5e3         ! center of bubble  from surface
+           icenter = npx/2
+           jcenter = npy/2
+
+           do j=js,je
+              do i=is,ie
+                 ze = 0.
+                 do k=npz,1,-1
+                    zm = ze - 0.5*delz(i,j,k)   ! layer center
+                    ze = ze - delz(i,j,k)
+                    dist = ((i-icenter)*dx_const)**2 + ((j-jcenter)*dy_const)**2 +  &
+                           (zm-zc)**2
+                    dist = sqrt(dist)
+                    if ( dist <= r0 ) then
+                       pt(i,j,k) = pt(i,j,k) + 5.*(1.-dist/r0)
+                    endif
+                 enddo
+              enddo
+           enddo
+
+        case ( 16 )
 !------------------------------------
-! Nonhydrostatic 3D cold + warm bubbles (geophysical scale)
+! Non-hydrostatic 3D density current:
 !------------------------------------
            phis = 0.
-           u = Umean
-           v = Vmean
+           u = 0.
+           v = 0.
            w = 0.
-           if (test_case == 15) then
-              t00 = 303.14 !Robert 1993
-           else
-              t00 = 300.
-           endif
+          t00 = 300.
           p00 = 1.E5
           pk0 = p00**kappa
-! Set up vertical coordinate with constant dz and 10000 m top:
-          ! Control: npz=100;  dx = 100 m; dt = 1; n_split=10
-          if (test_case > 0) then
-             ztop = 10000. ! 6400.
-          else
-             ztop = 1500.
-          endif
+! Set up vertical coordinare with constant del-z spacing:
+! Control: npz=64;  dx = 100 m; dt = 1; n_split=10
+          ztop = 6.4E3
          ze1(    1) = ztop
          ze1(npz+1) = 0.
          do k=npz,2,-1
@@ -4867,33 +4912,14 @@ end subroutine terminator_tracers
              enddo
           enddo
 
-          !IMPORTANT set up ptop, ak, and bk
           ptop = pe(is,1,js)
-          ks = npz/5
-          do k=1,ks
-             ak(k) = pe(is,k,js) !uniform pressure
-             bk(k) = 0.0
-          enddo
-          do k=ks+1,npz
-             bk(k) = ( pe(is,k,js) -  pe(is,ks,js)) / (p00 - pe(is,ks,js))
-             bk(k) = bk(k)**2 !smoother profile
-             ak(k) = pe(is,k,js) - bk(k)*p00
-          enddo
-          bk(npz+1) = 1.0
-          ak(npz+1) = 0.0
-
-          if ( is_master() ) then
-             if (abs(test_case) == 15) then
-                write(*,*) 'Warm bubble testcase: model top (mb)=', ptop/100.
-             else
-                write(*,*) 'Density current testcase: model top (mb)=', ptop/100.
-             endif
-          endif
+          if ( is_master() ) write(*,*) 'Density curent testcase: model top (mb)=', ptop/100.
 
           do k=1,npz+1
              do j=js,je
                 do i=is,ie
                    peln(i,k,j) = log(pe(i,k,j))
+                    !ze0(i,j,k) = ze1(k) !not used?
                 enddo
              enddo
           enddo
@@ -4903,7 +4929,7 @@ end subroutine terminator_tracers
                 do i=is,ie
                    pkz(i,j,k) = (pk(i,j,k+1)-pk(i,j,k))/(kappa*(peln(i,k+1,j)-peln(i,k,j)))
                   delp(i,j,k) =  pe(i,k+1,j)-pe(i,k,j)
-                    pt(i,j,k) = t00*pkz(i,j,k)/pk0   ! potential temp
+                    pt(i,j,k) = t00/pk0   ! potential temp
                 enddo
              enddo
           enddo
@@ -4912,64 +4938,28 @@ end subroutine terminator_tracers
                      pe, peln, pk, pkz, kappa, q, ng, ncnst, area, dry_mass, .false., .false., &
                      moist_phys, .false., nwat, domain, flagstruct%adiabatic, .true.)
 
-! *** Add Initial perturbation ***
-        if (bubble_do) then
-           if (test_case == 15) then
-              if (dt_amp < 0.) then
-                 pturb = 2. ! 0.5
-                 zc = 2000. ! 500.
-                 zr = 2000. ! 250.
-                 r0 = max(250., 5.*max(dx_const, dy_const))
-              else
-                 pturb = dt_amp
-                 zc = 2000.
-                 zr = 2000.
-                 r0 = dt_rad
-              endif
-           else if (test_case == -15) then
-              if (dt_amp < 0.) then
-                 pturb = 0.5
-                 zc = 250.
-                 zr = 250.
-                 r0 = max(250., 5.*max(dx_const, dy_const))
-              else
-                 pturb = dt_amp
-                 zc = dt_rad
-                 zr = dt_rad
-                 r0 = dt_rad
-              endif
-           else
-              pturb = 15.
-              zc = 3.E3
-              zr = 2.e3
-              r0 = 4.e3
-           endif
-           xc = dx_const * (npx-1) / 2.
-           yc = dy_const * (npy-1) / 2.
+          pturb = 15.
+           xmax = 51.2E3
+             xc = xmax / 2.
 
-           m = get_tracer_index (MODEL_ATMOS, 'bubble_tracer')
+         do k=1,npz
+            zm = (0.5*(ze1(k)+ze1(k+1))-3.E3) / 2.E3
+            do j=js,je
+               do i=is,ie
+! Impose perturbation in potential temperature: pturb
+                  xx = (dx_const * (0.5+real(i-1)) - xc) / 4.E3
+                  yy = (dy_const * (0.5+real(j-1)) - xc) / 4.E3
+                  dist = sqrt( xx**2 + yy**2 + zm**2 )
+                  if ( dist<=1. ) then
+                       pt(i,j,k) = pt(i,j,k) - pturb/pkz(i,j,k)*(cos(pi*dist)+1.)/2.
+                  endif
+! Transform back to temperature:
+                  pt(i,j,k) = pt(i,j,k) * pkz(i,j,k)
+               enddo
+            enddo
+          enddo
 
-           icenter = (npx-1)/2 + 1
-           jcenter = (npy-1)/2 + 1
-           do k=1, npz
-              zm = 0.5*(ze1(k)+ze1(k+1))
-              ptmp = ( (zm-zc)/zc ) **2
-              do j=js,je
-                 do i=is,ie
-                    dist = ptmp+((i-icenter)*dx_const/r0)**2
-                    if (npy > 10) dist = dist + ((j-jcenter)*dy_const/r0)**2
-                    if ( dist<=1. ) then
-                       pt(i,j,k) = pt(i,j,k) + pturb*pkz(i,j,k)/pk0*(cos(pi*dist)+1.)*0.5
-                       if (m > 0) then
-                          q(i,j,k,m) = pturb*pkz(i,j,k)/pk0*(cos(pi*dist)+1.)*0.5
-                       endif
-                    endif
-                 enddo
-              enddo
-           enddo
-        endif
-
-       case ( 17 )
+      case ( 17 )
 !---------------------------
 ! Doubly periodic SuperCell, straight wind (v==0)
 !--------------------------
@@ -5045,8 +5035,7 @@ end subroutine terminator_tracers
 
 ! *** Add Initial perturbation ***
         if (bubble_do) then
-           pturb = 2.
-           if (dt_amp > 0. ) pturb = dt_amp
+           pturb = dt_amp ! 2.
            r0 = dt_rad ! 10.e3
            zc = 1.4e3         ! center of bubble  from surface
            icenter = (npx-1)/2 + 1
@@ -5155,8 +5144,7 @@ end subroutine terminator_tracers
 
 ! *** Add Initial perturbation ***
         if (bubble_do) then
-           pturb = 2.
-           if (dt_amp > 0.) pturb = dt_amp
+           pturb = dt_amp ! 2.
            r0 = dt_rad ! 10.e3
            zc = 1.4e3         ! center of bubble  from surface
            icenter = (npx-1)/2 + 1
@@ -5178,8 +5166,6 @@ end subroutine terminator_tracers
 ! Revised Doubly periodic SuperCell, straight wind (v==0)
 ! Linjiong Zhou
 !--------------------------
-
-         if (is_master()) print*, ' Revised DP Supercell'
         zvir = rvgas/rdgas - 1.
         p00 = 1000.E2
           ps(:,:) = p00
@@ -5237,11 +5223,11 @@ end subroutine terminator_tracers
         do k=1,npz
              zm = 0.5*(ze1(k)+ze1(k+1))
            if (no_wind) then
-              us0 = 0.0
+              us0 = 0.0 + umean
            else
-              us0 = 14.
+              us0 = 14. + umean
            endif
-           utmp = us0*tanh(zm/1.2E4)  + umean
+           utmp = us0*tanh(zm/1.2E4)
            do j=js,je+1
               do i=is,ie
                  u(i,j,k) = utmp
@@ -5255,10 +5241,8 @@ end subroutine terminator_tracers
 
         if (gaussian_dt) then
 
-         if (is_master()) print*, ' gaussian bubble'
 ! *** Add Initial perturbation (Gaussian) ***
-        pturb = 2.1
-        if (dt_amp > 0.) pturb = dt_amp
+        pturb = dt_amp
         r0 = dt_rad ! 10.e3
         zc = 1.4e3         ! center of bubble  from surface
         icenter = (npx-1)/2 + 1
@@ -5278,11 +5262,8 @@ end subroutine terminator_tracers
 
         else if (bubble_do) then
 
-           if (is_master()) print*, ' elliptical bubble'
-
 ! *** Add Initial perturbation (Ellipse) ***
-        pturb = 2.1
-        if (dt_amp > 0.) pturb = dt_amp
+        pturb = dt_amp
         r0 = dt_rad ! 10.e3
         zc = 1.4e3         ! center of bubble  from surface
         icenter = (npx-1)/2 + 1
@@ -5297,55 +5278,6 @@ end subroutine terminator_tracers
               enddo
            enddo
         enddo
-
-        else !put in u/v pulse
-
-           !pturb = 15.
-           !if (dt_amp > 0.)
-           pturb = dt_amp
-           r0 = dt_rad ! 10.e3
-           zc = 1000.         ! center of bubble  from surface
-           icenter = (npx-1)/2 + 1.
-           jcenter = (npy-1)/2 + 1.
-
-           if (is_master()) print*, ' DRY PULSE IC'
-
-           q(:,:,:,:) = 0.
-
-           m = minloc(abs(0.5*(ze1(1:npz)+ze1(2:npz+1)) - zc),1)
-           if (is_master()) print*, ' Pulse level = ', m
-
-           !start with v perturbation
-           do k=m-3,m+3 ! 1, npz
-              ptmp = 0.
-              do j=js,je
-                 if (j < jcenter) then
-                    do i=is,ie+1
-                       dist = ptmp+((i-icenter)*dx_const/r0)**2+((j-jcenter+1)*dy_const/(r0))**2
-                       v(i,j,k) = v(i,j,k) + pturb*max(1.-sqrt(dist),0.)
-                       !v(i,j,k) = pturb*max(1.-sqrt(dist),0.)
-                    enddo
-                 else
-                    do i=is,ie+1
-                       dist = ptmp+((i-icenter)*dx_const/r0)**2+((j-jcenter)*dy_const/(r0))**2
-                       v(i,j,k) = v(i,j,k) - pturb*max(1.-sqrt(dist),0.)
-                       !v(i,j,k) =  - pturb*max(1.-sqrt(dist),0.)
-                    enddo
-                 endif
-              enddo
-           enddo
-           !u perturbation
-           do k=m-3,m+3 ! 1,npz
-              ptmp = 0.
-              do j=js,je+1
-                 do i=is,ie
-                    dist = ptmp+((i-icenter)*dx_const/r0)**2+((j-jcenter)*dy_const/(r0))**2
-                    u(i,j,k) = u(i,j,k) + pturb*max(1.-sqrt(dist),0.)
-                    !u(i,j,k)  = - pturb*max(1.-sqrt(dist),0.)
-                 enddo
-              enddo
-           enddo
-
 
         endif
 
@@ -5855,141 +5787,6 @@ end subroutine terminator_tracers
                      pe, peln, pk, pkz, kappa, q, ng, ncnst, area, dry_mass, .false., .false., &
                      moist_phys, hydrostatic, nwat, domain, flagstruct%adiabatic, .not. hydrostatic )
 
-
-        case ( 23 )
-!---------------------------------------------------------
-! stably-stratified pulse
-!---------------------------------------------------------
-           t00 = 288.
-           N2 = 0.01**2
-           p00 = 1.e5
-           pk0 = exp(kappa*log(p00))
-           th0 = t00/pk0
-           amp = grav*grav/(cp_air*N2)
-           rkap = 1./kappa
-
-           !1. set up topography (none)
-           phis = 0.
-
-           !2. Compute surface pressure
-           !    then form pressure surfaces
-           do j=jsd,jed
-              do i=isd,ied
-                 ths = th0*exp(phis(i,j)*N2/grav)
-                 pks = pk0 + amp*(1./ths - 1./th0)
-                 ps(i,j) = exp(rkap*log(pks))
-              enddo
-           enddo
-
-           do k=1,npz+1
-              do j=js,je
-                 do i=is,ie
-                    pe(i,k,j) = ak(k) + ps(i,j)*bk(k)
-                    peln(i,k,j) = log(pe(i,k,j))
-                    pk(i,j,k) = exp(kappa*log(pe(i,k,j)))
-                 enddo
-              enddo
-           enddo
-           do k=1,npz
-              do j=js,je
-                 do i=is,ie
-                    delp(i,j,k) = pe(i,k+1,j) - pe(i,k,j)
-                    !delp(i,j,k) = ak(k+1) - ak(k) + ps(i,j)*(bk(k+1) - bk(k))
-                    pkz(i,j,k) = delp(i,j,k)/(peln(i,k+1,j)-peln(i,k,j))
-                    pkz(i,j,k) = exp(kappa*log(pkz(i,j,k)))
-                 enddo
-              enddo
-           enddo
-           ptop = ak(1)
-
-           !3. Set up thermal profile: N = 0.02
-           do j=js,je
-              do i=is,ie
-                 ths = exp(-phis(i,j)*N2/grav)/th0
-                 ths = ths - (pk(i,j,npz+1)-pkz(i,j,npz))/amp
-                 pt(i,j,npz) = pkz(i,j,npz)/ths
-                 delz(i,j,npz) = rdgas/grav*pt(i,j,npz)*(peln(i,npz,j)-peln(i,npz+1,j))
-                 gz(i,j,npz) = gz(i,j,npz+1) - delz(i,j,npz)
-              enddo
-           enddo
-
-           do k=npz-1,1,-1
-              do j=js,je
-                 do i=is,ie
-                    ths = pkz(i,j,k+1)/pt(i,j,k+1) - (pkz(i,j,k+1)-pkz(i,j,k))/amp
-                    pt(i,j,k) = pkz(i,j,k)/ths
-                    delz(i,j,k) = rdgas/grav*pt(i,j,k)*(peln(i,k,j)-peln(i,k+1,j))
-                    gz(i,j,k) = gz(i,j,k+1) - delz(i,j,k)
-                 enddo
-              enddo
-           enddo
-
-           !4. Set up wind profile:
-           u = 10.0
-           v = 0.0
-           w = 0.0
-           q = 0.0
-           pturb = 15.
-           if (dt_amp > 0.) pturb = dt_amp
-           r0 = dt_rad ! 10.e3
-           zc = 500.         ! center of bubble  from surface
-           icenter = (npx-1)/2 + 1.
-           jcenter = (npy-1)/2 + 1.
-
-           !4a. create pulse
-           ze1(npz+1) = 0.
-           do k=npz,1,-1
-              ze1(k) = ze1(k+1) - delz(is,js,k)
-           enddo
-
-           !start with v perturbation
-           do k=1, npz
-              zm = 0.5*(ze1(k)+ze1(k+1))
-              ptmp = ( (zm-zc)/200. ) **2
-              do j=js,je
-                 if (j < jcenter) then
-                    do i=is,ie+1
-                       dist = ptmp+((i-icenter)*dx_const/r0)**2+((j-jcenter+1)*dy_const/(r0))**2
-                       v(i,j,k) = v(i,j,k) + pturb*max(1.-sqrt(dist),0.)
-                    enddo
-                 else
-                    do i=is,ie+1
-                       dist = ptmp+((i-icenter)*dx_const/r0)**2+((j-jcenter)*dy_const/(r0))**2
-                       v(i,j,k) = v(i,j,k) - pturb*max(1.-sqrt(dist),0.)
-                    enddo
-                 endif
-              enddo
-           enddo
-           !u perturbation
-           do k=1, npz
-              zm = 0.5*(ze1(k)+ze1(k+1))
-              ptmp = ( (zm-zc)/200. ) **2
-              do j=js,je+1
-                 do i=is,ie
-                    dist = ptmp+((i-icenter)*dx_const/r0)**2+((j-jcenter)*dy_const/(r0))**2
-                    u(i,j,k) = u(i,j,k) + pturb*max(1.-sqrt(dist),0.)
-                 enddo
-              enddo
-           enddo
-
-
-           !5. Re-adjust phis and gz ; set up other variables
-           do j=jsd,jed
-              do i=isd,ied
-                 phis(i,j) = phis(i,j)*grav
-              enddo
-           enddo
-           do k=1,npz+1
-              do j=jsd,jed
-                 do i=isd,ied
-                    gz(i,j,k) = gz(i,j,k)*grav
-                 enddo
-              enddo
-           enddo
-
-          call p_var(npz, is, ie, js, je, ptop, ptop_min, delp, delz, pt, ps,   &
-                     pe, peln, pk, pkz, kappa, q, ng, ncnst, area, dry_mass, .false., .false., &
-                     moist_phys, hydrostatic, nwat, domain, flagstruct%adiabatic, .not. hydrostatic )
 
       case ( 101 )
 
