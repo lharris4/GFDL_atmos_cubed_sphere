@@ -528,8 +528,7 @@ contains
                                akap, cappa,  cp,  ptop, phis, omga, ptc,  &
                                q_con,  delpc, gz,  pkc, ws3, flagstruct%p_fac, &
                                flagstruct%a_imp, flagstruct%scale_z, pfull, &
-                               flagstruct%fast_tau_w_sec, flagstruct%rf_cutoff, npx, npy, gridstruct%sw_corner, gridstruct%se_corner, &
-             gridstruct%ne_corner, gridstruct%nw_corner )
+                               flagstruct%fast_tau_w_sec, flagstruct%rf_cutoff )
            call timing_off('Riem_Solver')
 
            if (gridstruct%nested) then
