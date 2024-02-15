@@ -3020,10 +3020,33 @@ contains
 #else
        if(id_delp > 0) used=send_data(id_delp, Atm(n)%delp(isc:iec,jsc:jec,:), Time)
 #endif
-       if( ( (.not. Atm(n)%flagstruct%hydrostatic) .and. (id_pfnh > 0 .or. id_ppnh > 0)) .or. id_cape > 0 .or. id_cin > 0  .or. &
-            id_brn > 0 .or. id_shear06 > 0) then
 
-          do k=1,npz
+       !!! Compute pressure and variables requiring pressure (CAPE, CIN, BRN; latter needs shear06 too)
+
+       if ( id_pfnh > 0 .or. id_ppnh > 0 .or. &
+            id_cape > 0 .or. id_cin > 0  .or. &
+            id_brn > 0  .or. id_shear06 > 0 ) then
+
+          allocate(a3(isc:iec,jsc:jec,npz))
+
+          if (Atm(n)%flagstruct%hydrostatic .or. id_pfhy > 0) then
+             do k=1,npz
+             do j=jsc,jec
+             do i=isc,iec
+#ifdef GFS_PHYS
+                wk(i,j,k) = 0.5 *(Atm(n)%pe(i,k,j)+Atm(n)%pe(i,k+1,j))
+#else
+                wk(i,j,k) = Atm(n)%delp(i,j,k)/(Atm(n)%peln(i,k+1,j)-Atm(n)%peln(i,k,j))
+#endif
+             enddo
+             enddo
+             enddo
+             used=send_data(id_pfhy, wk, Time)
+          endif
+
+
+          if ( .not. Atm(n)%flagstruct%hydrostatic ) then
+             do k=1,npz
              do j=jsc,jec
              do i=isc,iec
 #ifdef GFS_PHYS
@@ -3036,98 +3059,86 @@ contains
 #endif
              enddo
              enddo
-           enddo
-!           if (prt_minmax) then
-!              call prt_mxm(' PFNH (mb)', wk(isc:iec,jsc:jec,1), isc, iec, jsc, jec, 0, npz, 1.E-2, Atm(n)%gridstruct%area_64, Atm(n)%domain)
-!           endif
-           used=send_data(id_pfnh, wk, Time)
-           if (id_ppnh > 0) then
-             do k=1,npz
-               do j=jsc,jec
-               do i=isc,iec
-                  !wk(i,j,k) = wk(i,j,k) - a3(i,j,k)
-#ifdef GFS_PHYS
-                  wk(i,j,k) = wk(i,j,k)/(1.-sum(Atm(n)%q(i,j,k,2:Atm(n)%flagstruct%nwat))) !Need to correct
-#endif
-                  tmp = Atm(n)%delp(i,j,k)/(Atm(n)%peln(i,k+1,j)-Atm(n)%peln(i,k,j))
-                  wk(i,j,k) = wk(i,j,k) - tmp
-               enddo
-               enddo
              enddo
-             if (id_ppnh > 0) used=send_data(id_ppnh, wk, Time)
-           endif
+             used=send_data(id_pfnh, wk, Time)
+             if (prt_minmax) then
+                call prt_mxm(' PFNH (mb)', wk(isc:iec,jsc:jec,1), isc, iec, jsc, jec, 0, npz, 1.E-2, Atm(n)%gridstruct%area_64, Atm(n)%domain, PRT_LEVEL_3)
+             endif
 
-!           if (allocated(a3)) deallocate(a3)
-
-        endif
-
-        if( Atm(n)%flagstruct%hydrostatic .and. (id_pfhy > 0 .or. id_cape > 0 .or. id_cin > 0 .or. id_brn > 0 .or. id_shear06 > 0) ) then
-          do k=1,npz
-            do j=jsc,jec
-            do i=isc,iec
+             if (id_ppnh > 0) then
+                do k=1,npz
+                do j=jsc,jec
+                do i=isc,iec
 #ifdef GFS_PHYS
-               wk(i,j,k) = 0.5 *(Atm(n)%pe(i,k,j)+Atm(n)%pe(i,k+1,j))
-#else
-               wk(i,j,k) = Atm(n)%delp(i,j,k)/(Atm(n)%peln(i,k+1,j)-Atm(n)%peln(i,k,j))
+                   wk(i,j,k) = wk(i,j,k)/(1.-sum(Atm(n)%q(i,j,k,2:Atm(n)%flagstruct%nwat))) !Correction for moist mass
 #endif
-            enddo
-            enddo
-          enddo
-          used=send_data(id_pfhy, wk, Time)
-      endif
+                   tmp = Atm(n)%delp(i,j,k)/(Atm(n)%peln(i,k+1,j)-Atm(n)%peln(i,k,j))
+                   a3(i,j,k) = wk(i,j,k) - tmp
+               enddo
+               enddo
+               enddo
+               used=send_data(id_ppnh, a3, Time)
+            endif
 
-       if (id_cape > 0 .or. id_cin > 0 .or. id_brn > 0 .or. id_shear06 > 0) then
+         end if
+
+         !TODO: ONLY defined for non-hydrostatic for now; requires hydrostatic re-calculation of delz -- lmh 15 feb 24
+         if (id_cape > 0 .or. id_cin > 0 .or. id_brn > 0 .or. id_shear06 > 0) then
           !wk here contains layer-mean pressure
 
-          allocate(var2(isc:iec,jsc:jec))
-          allocate(a3(isc:iec,jsc:jec,npz))
+            if (Atm(n)%flagstruct%hydrostatic) then
+               call mpp_error(NOTE, " CAPE, CIN, BRN, shear06 currently not implemented for hydrostatic dynamics.")
+            else
 
-          call eqv_pot(a3, Atm(n)%pt, Atm(n)%delp, Atm(n)%delz, Atm(n)%peln, Atm(n)%pkz, Atm(n)%q(isd,jsd,1,sphum),    &
-               isc, iec, jsc, jec, ngc, npz, Atm(n)%flagstruct%hydrostatic, Atm(n)%flagstruct%moist_phys)
+              allocate(var2(isc:iec,jsc:jec))
 
-!$OMP parallel do default(shared)
-          do j=jsc,jec
-          do i=isc,iec
-             a2(i,j) = 0.
-             var2(i,j) = 0.
+              call eqv_pot(a3, Atm(n)%pt, Atm(n)%delp, Atm(n)%delz, Atm(n)%peln, Atm(n)%pkz, Atm(n)%q(isd,jsd,1,sphum),    &
+                   isc, iec, jsc, jec, ngc, npz, Atm(n)%flagstruct%hydrostatic, Atm(n)%flagstruct%moist_phys)
 
-             call getcape(npz, wk(i,j,:), Atm(n)%pt(i,j,:), -Atm(n)%delz(i,j,:), Atm(n)%q(i,j,:,sphum), a3(i,j,:), a2(i,j), var2(i,j), source_in=1)
-          enddo
-          enddo
+    !$OMP parallel do default(shared)
+              do j=jsc,jec
+              do i=isc,iec
+                 a2(i,j) = 0.
+                 var2(i,j) = 0.
 
-          if (id_cape > 0) then
-             if (prt_minmax) then
-                call prt_mxm('CAPE (J/kg)', a2, isc,iec,jsc,jec, 0, 1, 1., Atm(n)%gridstruct%area_64, Atm(n)%domain)
-             endif
-             used=send_data(id_cape, a2, Time)
-          endif
-          if (id_cin > 0) then
-             if (prt_minmax) then
-                call prt_mxm('CIN (J/kg)', var2, isc,iec,jsc,jec, 0, 1, 1., Atm(n)%gridstruct%area_64, Atm(n)%domain)
-             endif
-             used=send_data(id_cin, var2, Time)
-          endif
+                 call getcape(npz, wk(i,j,:), Atm(n)%pt(i,j,:), -Atm(n)%delz(i,j,:), Atm(n)%q(i,j,:,sphum), a3(i,j,:), a2(i,j), var2(i,j), source_in=1)
+              enddo
+              enddo
 
-          if (id_brn > 0 .or. id_shear06 > 0) then
-             call compute_brn(Atm(n)%ua,Atm(n)%va,Atm(n)%delp,Atm(n)%delz,a2,Atm(n)%bd,npz,Time)
-          endif
+              if (id_cape > 0) then
+                 if (prt_minmax) then
+                    call prt_mxm('CAPE (J/kg)', a2, isc,iec,jsc,jec, 0, 1, 1., Atm(n)%gridstruct%area_64, Atm(n)%domain)
+                 endif
+                 used=send_data(id_cape, a2, Time)
+              endif
+              if (id_cin > 0) then
+                 if (prt_minmax) then
+                    call prt_mxm('CIN (J/kg)', var2, isc,iec,jsc,jec, 0, 1, 1., Atm(n)%gridstruct%area_64, Atm(n)%domain)
+                 endif
+                 used=send_data(id_cin, var2, Time)
+              endif
 
-          deallocate(var2)
-          deallocate(a3)
+              if (id_brn > 0 .or. id_shear06 > 0) then
+                 call compute_brn(Atm(n)%ua,Atm(n)%va,Atm(n)%delp,Atm(n)%delz,a2,Atm(n)%bd,npz,Time)
+              endif
+
+              deallocate(var2)
+           endif
 
        endif
+       deallocate(a3)
+    endif
 
-
-       if((.not. Atm(n)%flagstruct%hydrostatic) .and. id_delz > 0) then
-          do k=1,npz
-            do j=jsc,jec
-            do i=isc,iec
-               wk(i,j,k) = -Atm(n)%delz(i,j,k)
-            enddo
-            enddo
-          enddo
-          used=send_data(id_delz, wk, Time)
-       endif
+    if((.not. Atm(n)%flagstruct%hydrostatic) .and. id_delz > 0) then
+       do k=1,npz
+       do j=jsc,jec
+       do i=isc,iec
+          wk(i,j,k) = -Atm(n)%delz(i,j,k)
+       enddo
+       enddo
+       enddo
+       used=send_data(id_delz, wk, Time)
+    endif
 
 
 ! pressure for masking p-level fields
