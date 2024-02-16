@@ -1649,7 +1649,7 @@ contains
            idiag%efx_sum = idiag%efx_sum + E_Flux
            if ( idiag%steps <= max_step ) idiag%efx(idiag%steps) = E_Flux
            if (master)  then
-              write(*,'(2x, A16, 2A, G)') '   Energy_Deficit (W/m**2)', trim(gn), ' = ', E_Flux
+              write(*,'(2x, A, 2A, G)') '   Energy_Deficit (W/m**2)', trim(gn), ' = ', E_Flux
            endif
 
 
