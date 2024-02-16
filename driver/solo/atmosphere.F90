@@ -157,12 +157,13 @@ contains
      else
         zvir = rvgas/rdgas - 1.
         Atm(mygrid)%flagstruct%moist_phys = .true.
-        call gfdl_mp_init (input_nml_file, stdlog(), Atm(mygrid)%flagstruct%hydrostatic)
      endif
-     if (Atm(mygrid)%flagstruct%adiabatic .or. Atm(mygrid)%flagstruct%fv_sg_adj > 0.) then
+     if (.not. Atm(mygrid)%flagstruct%adiabatic .or. Atm(mygrid)%flagstruct%fv_sg_adj > 0.) then
         call fv_phys_init(isc,iec,jsc,jec,Atm(mygrid)%npz,Atm(mygrid)%flagstruct%nwat, Atm(mygrid)%ts, Atm(mygrid)%pt(isc:iec,jsc:jec,:),   &
                           Time, axes, Atm(mygrid)%gridstruct%agrid(isc:iec,jsc:jec,2))
      endif
+
+     if (.not. Atm(mygrid)%flagstruct%adiabatic) call gfdl_mp_init (input_nml_file, stdlog(), Atm(mygrid)%flagstruct%hydrostatic)
 
 
      if ( Atm(mygrid)%flagstruct%nudge )    &
@@ -448,7 +449,7 @@ contains
 
     end do !p_split
 
-    if(Atm(n)%npz /=1 .and. .not. Atm(n)%flagstruct%adiabatic)then
+    if(Atm(n)%npz /=1 .and. (.not. Atm(n)%flagstruct%adiabatic .or. Atm(mygrid)%flagstruct%fv_sg_adj > 0.)) then
 
            call timing_on('FV_PHYS')
     call fv_phys(Atm(n)%npx, Atm(n)%npy, Atm(n)%npz, Atm(n)%bd%isc, Atm(n)%bd%iec, &
@@ -463,7 +464,8 @@ contains
             Atm(n)%flagstruct%fv_sg_adj, Atm(n)%flagstruct%do_Held_Suarez,  &
             Atm(n)%gridstruct, Atm(n)%flagstruct, Atm(n)%neststruct,        &
             Atm(n)%flagstruct%nwat, Atm(n)%bd,                              &
-            Atm(n)%domain, fv_time, Atm(n)%phys_diag, Atm(n)%nudge_diag, Atm(n)%sg_diag, time_total)
+            Atm(n)%domain, fv_time, Atm(n)%phys_diag, Atm(n)%nudge_diag,    &
+            Atm(n)%sg_diag, time_total)
            call timing_off('FV_PHYS')
        endif
 
