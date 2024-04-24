@@ -571,7 +571,7 @@ contains
                         Atm(n)%w, Atm(n)%delz, u_dt, v_dt, Atm(n)%flagstruct%n_sponge)
     endif
 
-#ifdef W_DIFF
+    !Only active if w_diff is defined
     if ( .not. Atm(n)%flagstruct%hydrostatic .and. w_diff /= NO_TRACER ) then
 !$OMP parallel do default (none) &
 !$OMP              shared (isc, iec, jsc, jec, w_diff, n, Atm) &
@@ -580,7 +580,6 @@ contains
           Atm(n)%q(isc:iec,jsc:jec,k,w_diff) = Atm(n)%w(isc:iec,jsc:jec,k) + w0_big
        enddo
     endif
-#endif
 
     if (allocated(Atm(n)%sg_diag%u_dt)) then
        Atm(n)%sg_diag%u_dt = u_dt(isc:iec,jsc:jec,:)
@@ -1389,7 +1388,6 @@ contains
    endif
 
 !--- adjust w and heat tendency for non-hydrostatic case
-#ifdef W_DIFF
     if ( .not.Atm(n)%flagstruct%hydrostatic .and. w_diff /= NO_TRACER ) then
       rcp = 1. / cp_air
 !$OMP parallel do default (none) &
@@ -1409,7 +1407,6 @@ contains
         enddo
       enddo
     endif
-#endif
 
     call timing_on('FV_UPDATE_PHYS')
     call fv_update_phys( dt_atmos, isc, iec, jsc, jec, isd, ied, jsd, jed, Atm(n)%ng, nt_dyn, &
@@ -1439,45 +1436,7 @@ contains
       enddo
    enddo
 
-!LMH 7jan2020: Update PBL and other clock tracers, if present
-   tracer_clock = time_type_to_real(Time_next - Atm(n)%Time_init)*1.e-6
-   lat_thresh = 15.*pi/180.
-   do iq = 1, nq
-      call get_tracer_names (MODEL_ATMOS, iq, tracer_name)
-      if (trim(tracer_name) == 'pbl_clock' .or. trim(tracer_name) == 'tro_pbl_clock') then
-         do nb = 1,Atm_block%nblks
-            blen = Atm_block%blksz(nb)
-            do ix = 1, blen
-               i = Atm_block%index(nb)%ii(ix)
-               j = Atm_block%index(nb)%jj(ix)
-               if (trim(tracer_name) == 'tro_pbl_clock' .and. abs(Atm(n)%gridstruct%agrid(i,j,2)) > lat_thresh) cycle
-               do k=1,npz
-                  k1 = npz+1-k !reverse the k direction
-                  Atm(n)%q(i,j,k1,iq) = tracer_clock
-                  if (IPD_Data(nb)%Statein%phii(ix,k) > IPD_Data(nb)%intdiag%hpbl(ix)*grav) exit
-               enddo
-            enddo
-         enddo
-      else if (trim(tracer_name) == 'sfc_clock') then
-         do j=jsc,jec
-         do i=isc,iec
-            Atm(n)%q(i,j,npz,iq) = tracer_clock
-         enddo
-         enddo
-      else if (trim(tracer_name) == 'itcz_clock' ) then
-         do k=1,npz
-         do j=jsc,jec
-         do i=isc,iec
-            if (abs(Atm(n)%gridstruct%agrid(i,j,2)) < lat_thresh .and. Atm(n)%w(i,j,k) > 1.5) then
-               Atm(n)%q(i,j,npz,iq) = tracer_clock
-            endif
-         enddo
-         enddo
-         enddo
-      endif
-  enddo
-
-!Age of (PBL) air tracers, instead --- lmh 21feb24
+!Age of (PBL) air tracers --- lmh 21feb24
    lat_thresh = 15.*pi/180.
    t_aging = dt_atmos/86400. !days
    t_relax = exp(-dt_atmos/3600.) !e-folding of 1 hour
