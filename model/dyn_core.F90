@@ -1082,10 +1082,10 @@ contains
         endif !.not. hydrostatic
 #if defined (ADA_NUDGE)
          call breed_slp_inline_ada( it, dt, npz, ak, bk, phis, pe, pk, peln, pkz,     &
-                                delp, u, v, pt, q, flagstruct%nwat, zvir, gridstruct, ks, domain, bd )
+                                delp, u, v, pt, q, flagstruct%nwat, gridstruct, ks, domain, bd )
 #else
          call breed_slp_inline( it, dt, npz, ak, bk, phis, pe, pk, peln, pkz, delp, u, v, pt, q,    &
-                                flagstruct%nwat, zvir, gridstruct, ks, domain, bd, hydrostatic )
+                                flagstruct%nwat, gridstruct, ks, domain, bd, hydrostatic )
 #endif
     endif
 !-------------------------------------------------------------------------------------------------------

@@ -110,7 +110,7 @@ logical :: get_wind, get_temp, get_qhum
 
 integer :: id_index, id_coeff
 
-real, parameter :: ZVIR = RVGAS/RDGAS-1.
+real, parameter :: ZVIR = RVGAS/RDGAS-1. !REDEF
 
 CONTAINS
 

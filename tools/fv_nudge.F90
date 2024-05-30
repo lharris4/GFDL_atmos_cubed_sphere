@@ -715,7 +715,7 @@ module fv_nwp_nudge_mod
   deallocate ( ps_obs )
 
   if ( do_breed_TC .and. breed_srf_w .and. nudge_winds )   then
-     call breed_srf_winds(Time, dt, npz, u_obs, v_obs, ak, bk, ps, phis, delp, ua, va, u_dt, v_dt, pt, q, nwat, zvir, gridstruct)
+     call breed_srf_winds(Time, dt, npz, u_obs, v_obs, ak, bk, ps, phis, delp, ua, va, u_dt, v_dt, pt, q, nwat, gridstruct)
   endif
 
   if ( nudge_debug) then
@@ -1177,13 +1177,13 @@ module fv_nwp_nudge_mod
   endif
 
        call remap_tq(npz, ak, bk, ps(is:ie,js:je), delp,  ut,  vt,  &
-                     km,  ps_dat(is:ie,js:je,1),  t_dat(:,:,:,1), q_dat(:,:,:,1), zvir)
+                     km,  ps_dat(is:ie,js:je,1),  t_dat(:,:,:,1), q_dat(:,:,:,1))
 
        t_obs(:,:,:) = alpha*ut(:,:,:)
        q_obs(:,:,:) = alpha*vt(:,:,:)
 
        call remap_tq(npz, ak, bk, ps(is:ie,js:je), delp,  ut,  vt,  &
-                     km,  ps_dat(is:ie,js:je,2),  t_dat(:,:,:,2), q_dat(:,:,:,2), zvir)
+                     km,  ps_dat(is:ie,js:je,2),  t_dat(:,:,:,2), q_dat(:,:,:,2))
 
        t_obs(:,:,:) = t_obs(:,:,:) + beta*ut(:,:,:)
        q_obs(:,:,:) = q_obs(:,:,:) + beta*vt(:,:,:)
@@ -1870,9 +1870,8 @@ module fv_nwp_nudge_mod
 
 
  subroutine remap_tq( npz, ak,  bk,  ps, delp,  t,  q,  &
-                      kmd, ps0, ta, qa, zvir)
+                      kmd, ps0, ta, qa)
   integer, intent(in):: npz, kmd
-  real,    intent(in):: zvir
   real,    intent(in):: ak(npz+1), bk(npz+1)
   real,    intent(in),    dimension(is:ie,js:je):: ps0
   real,    intent(inout), dimension(is:ie,js:je):: ps
@@ -2093,7 +2092,7 @@ module fv_nwp_nudge_mod
 
 
  subroutine breed_slp_inline(nstep, dt, npz, ak, bk, phis, pe, pk, peln, pkz, delp, u, v, pt, q, nwat,   &
-                             zvir, gridstruct, ks, domain_local, bd, hydrostatic)
+                             gridstruct, ks, domain_local, bd, hydrostatic)
 !------------------------------------------------------------------------------------------
 ! Purpose:  Vortex-breeding by nudging sea-level-pressure towards single point observations
 ! Note: conserve water mass, geopotential, and momentum at the expense of dry air mass
@@ -2101,7 +2100,6 @@ module fv_nwp_nudge_mod
 ! Input
       integer, intent(in):: nstep, npz, nwat, ks
       real, intent(in):: dt       ! (small) time step in seconds
-      real, intent(in):: zvir
       real, intent(in), dimension(npz+1):: ak, bk
       logical, intent(in):: hydrostatic
       type(fv_grid_bounds_type), intent(IN) :: bd
@@ -2853,7 +2851,7 @@ module fv_nwp_nudge_mod
   end subroutine breed_srf_w10
 
 
- subroutine breed_srf_winds(time, dt, npz, u_obs, v_obs, ak, bk, ps, phis, delp, ua, va, u_dt, v_dt, pt, q, nwat, zvir, gridstruct)
+ subroutine breed_srf_winds(time, dt, npz, u_obs, v_obs, ak, bk, ps, phis, delp, ua, va, u_dt, v_dt, pt, q, nwat, gridstruct)
 !------------------------------------------------------------------------------------------
 ! Purpose:  Vortex-breeding by nudging 1-m winds
 !------------------------------------------------------------------------------------------
@@ -2861,7 +2859,6 @@ module fv_nwp_nudge_mod
       type(time_type), intent(in):: time
       integer, intent(in):: npz, nwat
       real, intent(in):: dt       ! time step in seconds
-      real, intent(in):: zvir
       real, intent(in), dimension(npz+1):: ak, bk
       real, intent(in), dimension(isd:ied,jsd:jed):: phis, ps
       real, intent(in), dimension(is:ie,js:je,npz):: u_obs, v_obs
