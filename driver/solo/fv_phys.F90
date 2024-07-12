@@ -494,7 +494,7 @@ contains
        call K_warm_rain(pdt, is, ie, js, je, ng, npz, nq, zvir, ua, va,   &
                         w, u_dt, v_dt, q, pt, delp, delz, &
                         pe, peln, pk, ps, rain, Time, &
-                        flagstruct%hydrostatic, thermostruct%moist_kappa)
+                        flagstruct%hydrostatic, thermostruct%moist_kappa, nwat)
 
        if( K_sedi_transport )  no_tendency = .false.
        if (do_terminator) then
@@ -1990,11 +1990,11 @@ endif
  end function g0_sum
 
  subroutine K_warm_rain(dt, is, ie, js, je, ng, km, nq, zvir, u, v, w, u_dt, v_dt, &
-                        q, pt, dp, delz, pe, peln, pk, ps, rain, Time, hydrostatic, moist_kappa)
+                        q, pt, dp, delz, pe, peln, pk, ps, rain, Time, hydrostatic, moist_kappa, nwat)
  type (time_type), intent(in) :: Time
  real, intent(in):: dt ! time step
  real, intent(in):: zvir
- integer, intent(in):: is, ie, js, je, km, ng, nq
+ integer, intent(in):: is, ie, js, je, km, ng, nq, nwat
  logical, intent(in) :: hydrostatic, moist_kappa
  real, intent(inout), dimension(is-ng:ie+ng,js-ng:je+ng,km):: dp, pt, w, u, v, u_dt, v_dt
  real, intent(inout), dimension(is   :ie   ,js   :je   ,km):: delz
@@ -2062,7 +2062,11 @@ endif
           endif
 !-------------------------------------------
 ! Dry air mass per unit area
-          drym(k) = dm(k) - (q1(k)+q2(k)+q3(k)) ! kg * ( g/dA)
+          if (nwat > 0) then
+             drym(k) = dm(k) - (q1(k)+q2(k)+q3(k)) ! kg * ( g/dA)
+          else
+             drym(k) = dm(k)
+          endif
           !dz(k) = -delz(i,j,k) !invalid for hydrostatic; not used unless EXP_MP enabled
 ! Dry air density
 ! Convert to dry mixing ratios:
@@ -2165,7 +2169,11 @@ endif
      q2(k) = (q2(k)+qb(k)) * drym(k)
      q3(k) = (q3(k)+qc(k)) * drym(k)
      ! Update total air mass:
-     dp(i,j,k) = drym(k) + q1(k)+q2(k)+q3(k)
+     if (nwat > 0) then
+        dp(i,j,k) = drym(k) + q1(k)+q2(k)+q3(k)
+     else
+        dp(i,j,k) = drym(k)
+     endif
      ! Update tracers:
      q(i,j,k,  sphum) = q1(k) / dp(i,j,k)
      q(i,j,k,liq_wat) = q2(k) / dp(i,j,k)
