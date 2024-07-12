@@ -147,8 +147,8 @@ contains
 ! Accumulated Courant number arrays
     real(kind=R_GRID), intent(inout) ::  cx(bd%is:bd%ie+1, bd%jsd:bd%jed, npz)
     real(kind=R_GRID), intent(inout) ::  cy(bd%isd:bd%ied ,bd%js:bd%je+1, npz)
-! Double-precision surface pressure
-    real(kind=R_GRID) :: ps_dp  (bd%isd:bd%ied  ,bd%jsd:bd%jed)           ! Surface pressure (pascal)
+!!$! Double-precision surface pressure
+!!$    real(kind=R_GRID) :: ps_dp  (bd%isd:bd%ied  ,bd%jsd:bd%jed)           ! Surface pressure (pascal)
 
 
     type(fv_grid_type),  intent(inout), target :: gridstruct
@@ -480,12 +480,12 @@ contains
          enddo
       enddo
 
-      !GMAO dry mass roundoff fix
-      do j=js,je
-      do i=is,ie
-         ps_dp(i,j) = pe(i,npz+1,j)
-      enddo
-      enddo
+!!$      !GMAO dry mass roundoff fix
+!!$      do j=js,je
+!!$      do i=is,ie
+!!$         ps_dp(i,j) = pe(i,npz+1,j)
+!!$      enddo
+!!$      enddo
 
       if ( n_map==k_split ) last_step = .true.
 
@@ -505,23 +505,23 @@ contains
                     consv_te, te_2d, time_total)
       call timing_off('DYN_CORE')
 
-      !GMAO dry mass rounding error fix
-      do k=1,npz
-      do j=js,je
-      do i=is,ie
-         ps_dp(i,j) = ps_dp(i,j) + ((mfx(i,j,k)-mfx(i+1,j,k)) + (mfy(i,j,k)-mfy(i,j+1,k)))*gridstruct%rarea(i,j)
-      enddo
-      enddo
-      enddo
-      call mpp_update_domains(ps_dp, domain)
-      !!! DEBUG CODE
-      !print*, pe(is,npz+1,js), ps_dp(is,js)
-      !!! END DEBUG CODE
-      do j=js-1,je+1
-      do i=is-1,ie+1
-         pe(i,npz+1,j) = ps_dp(i,j)
-      enddo
-      enddo
+!!$      !GMAO dry mass rounding error fix
+!!$      do k=1,npz
+!!$      do j=js,je
+!!$      do i=is,ie
+!!$         ps_dp(i,j) = ps_dp(i,j) + ((mfx(i,j,k)-mfx(i+1,j,k)) + (mfy(i,j,k)-mfy(i,j+1,k)))*gridstruct%rarea(i,j)
+!!$      enddo
+!!$      enddo
+!!$      enddo
+!!$      call mpp_update_domains(ps_dp, domain)
+!!$      !!! DEBUG CODE
+!!$      !print*, pe(is,npz+1,js), ps_dp(is,js)
+!!$      !!! END DEBUG CODE
+!!$      do j=js-1,je+1
+!!$      do i=is-1,ie+1
+!!$         pe(i,npz+1,j) = ps_dp(i,j)
+!!$      enddo
+!!$      enddo
 
 
 #ifdef SW_DYNAMICS
