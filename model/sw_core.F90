@@ -23,7 +23,7 @@ module sw_core_mod
 
  use tp_core_mod,       only: fv_tp_2d, pert_ppm, copy_corners
  use fv_mp_mod, only: fill_corners, XDir, YDir
- use fv_arrays_mod, only: fv_grid_type, fv_grid_bounds_type, fv_flags_type
+ use fv_arrays_mod, only: fv_grid_type, fv_grid_bounds_type, fv_flags_type, R_GRID
  use a2b_edge_mod, only: a2b_ord4
  use mpp_mod, only: mpp_pe !DEBUG
 
@@ -252,7 +252,7 @@ module sw_core_mod
                    ptc(i,j) = pt(i,j)
 #else
                    ptc(i,j) = (pt(i,j)*delp(i,j) +   &
-                              (fx(i,j)-fx(i+1,j)+fy(i,j)-fy(i,j+1))*gridstruct%rarea(i,j))/delpc(i,j)
+                              ((fx(i,j)-fx(i+1,j))+(fy(i,j)-fy(i,j+1)))*gridstruct%rarea(i,j))/delpc(i,j)
 #endif
               enddo
            enddo
@@ -276,11 +276,11 @@ module sw_core_mod
            enddo
            do j=js-1,je+1
               do i=is-1,ie+1
-                 delpc(i,j) = delp(i,j) + (fx1(i,j)-fx1(i+1,j)+fy1(i,j)-fy1(i,j+1))*gridstruct%rarea(i,j)
+                 delpc(i,j) = delp(i,j) + ((fx1(i,j)-fx1(i+1,j))+(fy1(i,j)-fy1(i,j+1)))*gridstruct%rarea(i,j)
                    ptc(i,j) = (pt(i,j)*delp(i,j) +   &
-                              (fx(i,j)-fx(i+1,j)+fy(i,j)-fy(i,j+1))*gridstruct%rarea(i,j))/delpc(i,j)
-                    wc(i,j) = (w(i,j)*delp(i,j) + (fx2(i,j)-fx2(i+1,j) +    &
-                               fy2(i,j)-fy2(i,j+1))*gridstruct%rarea(i,j))/delpc(i,j)
+                              ((fx(i,j)-fx(i+1,j))+(fy(i,j)-fy(i,j+1)))*gridstruct%rarea(i,j))/delpc(i,j)
+                    wc(i,j) = (w(i,j)*delp(i,j) + ((fx2(i,j)-fx2(i+1,j)) +    &
+                               (fy2(i,j)-fy2(i,j+1)))*gridstruct%rarea(i,j))/delpc(i,j)
               enddo
            enddo
       endif
@@ -383,7 +383,7 @@ module sw_core_mod
 
       do j=js,je+1
          do i=is,ie+1
-            vort(i,j) =  fx(i,j-1) - fx(i,j) - fy(i-1,j) + fy(i,j)
+            vort(i,j) =  (fx(i,j-1) - fx(i,j)) - (fy(i-1,j) - fy(i,j))
          enddo
       enddo
 
@@ -521,11 +521,11 @@ module sw_core_mod
       real, intent(OUT),   dimension(bd%is:bd%ie,bd%js:bd%je):: heat_source
       real, intent(OUT),   dimension(bd%is:bd%ie,bd%js:bd%je):: diss_est
 ! The flux capacitors:
-      real, intent(INOUT):: xflux(bd%is:bd%ie+1,bd%js:bd%je  )
-      real, intent(INOUT):: yflux(bd%is:bd%ie  ,bd%js:bd%je+1)
+      real(kind=R_GRID), intent(INOUT):: xflux(bd%is:bd%ie+1,bd%js:bd%je  )
+      real(kind=R_GRID), intent(INOUT):: yflux(bd%is:bd%ie  ,bd%js:bd%je+1)
 !------------------------
-      real, intent(INOUT)::    cx(bd%is:bd%ie+1,bd%jsd:bd%jed  )
-      real, intent(INOUT)::    cy(bd%isd:bd%ied,bd%js:bd%je+1)
+      real(kind=R_GRID), intent(INOUT)::    cx(bd%is:bd%ie+1,bd%jsd:bd%jed  )
+      real(kind=R_GRID), intent(INOUT)::    cy(bd%isd:bd%ied,bd%js:bd%je+1)
       logical, intent(IN):: hydrostatic
       logical, intent(IN):: inline_q
       real, intent(OUT), dimension(bd%is:bd%ie+1,bd%jsd:bd%jed):: crx_adv, xfx_adv
@@ -907,12 +907,12 @@ module sw_core_mod
 
       do j=jsd,jed
          do i=is,ie
-            ra_x(i,j) = area(i,j) + xfx_adv(i,j) - xfx_adv(i+1,j)
+            ra_x(i,j) = area(i,j) + (xfx_adv(i,j) - xfx_adv(i+1,j))
          enddo
       enddo
       do j=js,je
          do i=isd,ied
-            ra_y(i,j) = area(i,j) + yfx_adv(i,j) - yfx_adv(i,j+1)
+            ra_y(i,j) = area(i,j) + (yfx_adv(i,j) - yfx_adv(i,j+1))
          enddo
       enddo
 
@@ -955,7 +955,7 @@ module sw_core_mod
                if (prevent_diss_cooling) then
                   do j=js,je
                   do i=is,ie
-                    dw(i,j) = (fx2(i,j)-fx2(i+1,j)+fy2(i,j)-fy2(i,j+1))*rarea(i,j)
+                    dw(i,j) = ((fx2(i,j)-fx2(i+1,j))+(fy2(i,j)-fy2(i,j+1)))*rarea(i,j)
                     ! 0.5 * [ (w+dw)**2 - w**2 ] = w*dw + 0.5*dw*dw
                     !limiter to prevent "dissipative cooling"
                     !physically `tmp` is negative.
@@ -969,7 +969,7 @@ module sw_core_mod
               else
                  do j=js,je
                  do i=is,ie
-                   dw(i,j) = (fx2(i,j)-fx2(i+1,j)+fy2(i,j)-fy2(i,j+1))*rarea(i,j)
+                   dw(i,j) = ((fx2(i,j)-fx2(i+1,j))+(fy2(i,j)-fy2(i,j+1)))*rarea(i,j)
                    ! 0.5 * [ (w+dw)**2 - w**2 ] = w*dw + 0.5*dw*dw
                    heat_source(i,j) = dd8 - dw(i,j)*(w(i,j)+0.5*dw(i,j))
                    tmp = dw(i,j)*(w(i,j)+0.5*dw(i,j))
@@ -984,7 +984,7 @@ module sw_core_mod
                           gridstruct, bd, ra_x, ra_y, flagstruct%lim_fac, mfx=fx, mfy=fy)
            do j=js,je
               do i=is,ie
-                 w(i,j) = delp(i,j)*w(i,j) + (gx(i,j)-gx(i+1,j)+gy(i,j)-gy(i,j+1))*rarea(i,j)
+                 w(i,j) = delp(i,j)*w(i,j) + ((gx(i,j)-gx(i+1,j))+(gy(i,j)-gy(i,j+1)))*rarea(i,j)
               enddo
            enddo
         endif
@@ -994,7 +994,7 @@ module sw_core_mod
                 xfx_adv,yfx_adv, gridstruct, bd, ra_x, ra_y, flagstruct%lim_fac, mfx=fx, mfy=fy, mass=delp, nord=nord_t, damp_c=damp_t)
            do j=js,je
               do i=is,ie
-                 q_con(i,j) = delp(i,j)*q_con(i,j) + (gx(i,j)-gx(i+1,j)+gy(i,j)-gy(i,j+1))*rarea(i,j)
+                 q_con(i,j) = delp(i,j)*q_con(i,j) + ((gx(i,j)-gx(i+1,j))+(gy(i,j)-gy(i,j+1)))*rarea(i,j)
               enddo
            enddo
         endif
@@ -1021,12 +1021,12 @@ module sw_core_mod
         do j=js,je
            do i=is,ie
                 wk(i,j) = delp(i,j)
-              delp(i,j) = wk(i,j) + (fx(i,j)-fx(i+1,j)+fy(i,j)-fy(i,j+1))*rarea(i,j)
+              delp(i,j) = wk(i,j) + ((fx(i,j)-fx(i+1,j))+(fy(i,j)-fy(i,j+1)))*rarea(i,j)
 #ifdef SW_DYNAMICS
               ptc(i,j) = pt(i,j)
 #else
               pt(i,j) = (pt(i,j)*wk(i,j) +               &
-                        (gx(i,j)-gx(i+1,j)+gy(i,j)-gy(i,j+1))*rarea(i,j))/delp(i,j)
+                        ((gx(i,j)-gx(i+1,j))+(gy(i,j)-gy(i,j+1)))*rarea(i,j))/delp(i,j)
 #endif
            enddo
         enddo
@@ -1037,7 +1037,7 @@ module sw_core_mod
            do j=js,je
               do i=is,ie
                  q(i,j,k,iq) = (q(i,j,k,iq)*wk(i,j) +               &
-                         (gx(i,j)-gx(i+1,j)+gy(i,j)-gy(i,j+1))*rarea(i,j))/delp(i,j)
+                         ((gx(i,j)-gx(i+1,j))+(gy(i,j)-gy(i,j+1)))*rarea(i,j))/delp(i,j)
               enddo
            enddo
         enddo
@@ -1054,10 +1054,10 @@ module sw_core_mod
            do i=is,ie
 #ifndef SW_DYNAMICS
               pt(i,j) = pt(i,j)*delp(i,j) +               &
-                         (gx(i,j)-gx(i+1,j)+gy(i,j)-gy(i,j+1))*rarea(i,j)
+                         ((gx(i,j)-gx(i+1,j))+(gy(i,j)-gy(i,j+1)))*rarea(i,j)
 #endif
               delp(i,j) = delp(i,j) +                     &
-                         (fx(i,j)-fx(i+1,j)+fy(i,j)-fy(i,j+1))*rarea(i,j)
+                         ((fx(i,j)-fx(i+1,j))+(fy(i,j)-fy(i,j+1)))*rarea(i,j)
 #ifndef SW_DYNAMICS
               pt(i,j) = pt(i,j) / delp(i,j)
 
@@ -1242,7 +1242,7 @@ module sw_core_mod
 ! wk is "volume-mean" relative vorticity
        do j=jsd,jed
           do i=isd,ied
-             wk(i,j) = rarea(i,j)*(vt(i,j)-vt(i,j+1)-ut(i,j)+ut(i+1,j))
+             wk(i,j) = rarea(i,j)*((vt(i,j)-vt(i,j+1))-(ut(i,j)-ut(i+1,j)))
           enddo
        enddo
 
@@ -1351,7 +1351,7 @@ module sw_core_mod
 
       do j=js,je+1
          do i=is,ie+1
-            delpc(i,j) = vort(i,j-1) - vort(i,j) + ptc(i-1,j) - ptc(i,j)
+            delpc(i,j) = (vort(i,j-1) - vort(i,j)) + (ptc(i-1,j) - ptc(i,j))
          enddo
       enddo
 
@@ -1405,7 +1405,7 @@ module sw_core_mod
         if ( fill_c ) call fill_corners(vc, uc, npx, npy, VECTOR=.true., DGRID=.true.)
         do j=js-nt,je+1+nt
            do i=is-nt,ie+1+nt
-              divg_d(i,j) = uc(i,j-1) - uc(i,j) + vc(i-1,j) - vc(i,j)
+              divg_d(i,j) = (uc(i,j-1) - uc(i,j)) + (vc(i-1,j) - vc(i,j))
            enddo
         enddo
 
@@ -1499,12 +1499,12 @@ module sw_core_mod
                   xfx_adv,yfx_adv, gridstruct, bd, ra_x, ra_y, flagstruct%lim_fac)
     do j=js,je+1
        do i=is,ie
-          u(i,j) = vt(i,j) + ke(i,j) - ke(i+1,j) + fy(i,j)
+          u(i,j) = vt(i,j) + (ke(i,j) - ke(i+1,j)) + fy(i,j)
        enddo
     enddo
     do j=js,je
        do i=is,ie+1
-          v(i,j) = ut(i,j) + ke(i,j) - ke(i,j+1) - fx(i,j)
+          v(i,j) = ut(i,j) + (ke(i,j) - ke(i,j+1)) - fx(i,j)
        enddo
     enddo
 
@@ -1688,7 +1688,7 @@ module sw_core_mod
       nt = nord-n
       do j=js-nt-1,je+nt+1
          do i=is-nt-1,ie+nt+1
-            d2(i,j) = (fx2(i,j)-fx2(i+1,j)+fy2(i,j)-fy2(i,j+1))*gridstruct%rarea(i,j)
+            d2(i,j) = ((fx2(i,j)-fx2(i+1,j))+(fy2(i,j)-fy2(i,j+1)))*gridstruct%rarea(i,j)
          enddo
       enddo
 
@@ -1791,7 +1791,7 @@ module sw_core_mod
         enddo
         do j=js-1,je+2
            do i=is-1,ie+2
-              divg_d(i,j) = gridstruct%rarea_c(i,j)*(vf(i,j-1)-vf(i,j)+uf(i-1,j)-uf(i,j))
+              divg_d(i,j) = gridstruct%rarea_c(i,j)*((vf(i,j-1)-vf(i,j))+(uf(i-1,j)-uf(i,j)))
            enddo
         enddo
   else
@@ -1824,7 +1824,7 @@ module sw_core_mod
 
     do j=js,je+1
        do i=is,ie+1
-          divg_d(i,j) = vf(i,j-1) - vf(i,j) + uf(i-1,j) - uf(i,j)
+          divg_d(i,j) = (vf(i,j-1) - vf(i,j)) + (uf(i-1,j) - uf(i,j))
        enddo
     enddo
 
@@ -1902,7 +1902,7 @@ module sw_core_mod
         enddo
         do j=jsd+1,jed
            do i=isd+1,ied
-              divg_d(i,j) = rarea_c(i,j)*(vf(i,j-1)-vf(i,j)+uf(i-1,j)-uf(i,j))
+              divg_d(i,j) = rarea_c(i,j)*((vf(i,j-1)-vf(i,j))+(uf(i-1,j)-uf(i,j)))
            enddo
         enddo
     else
@@ -1923,7 +1923,7 @@ module sw_core_mod
 
        do j=jsd+1,jed
           do i=isd+1,ied
-             divg_d(i,j) = (vf(i,j-1) - vf(i,j) + uf(i-1,j) - uf(i,j))*rarea_c(i,j)
+             divg_d(i,j) = ((vf(i,j-1) - vf(i,j)) + (uf(i-1,j) - uf(i,j)))*rarea_c(i,j)
           enddo
        enddo
 

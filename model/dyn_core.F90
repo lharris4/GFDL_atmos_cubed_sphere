@@ -147,11 +147,11 @@ contains
     real, intent(inout):: te0_2d(bd%is:bd%ie,bd%js:bd%je)
 
 ! The Flux capacitors: accumulated Mass flux arrays
-    real, intent(inout)::  mfx(bd%is:bd%ie+1, bd%js:bd%je,   npz)
-    real, intent(inout)::  mfy(bd%is:bd%ie  , bd%js:bd%je+1, npz)
+    real(kind=R_GRID), intent(inout)::  mfx(bd%is:bd%ie+1, bd%js:bd%je,   npz)
+    real(kind=R_GRID), intent(inout)::  mfy(bd%is:bd%ie  , bd%js:bd%je+1, npz)
 ! Accumulated Courant number arrays
-    real, intent(inout)::  cx(bd%is:bd%ie+1, bd%jsd:bd%jed, npz)
-    real, intent(inout)::  cy(bd%isd:bd%ied ,bd%js:bd%je+1, npz)
+    real(kind=R_GRID), intent(inout)::  cx(bd%is:bd%ie+1, bd%jsd:bd%jed, npz)
+    real(kind=R_GRID), intent(inout)::  cy(bd%isd:bd%ied ,bd%js:bd%je+1, npz)
     real, intent(inout),dimension(bd%is:bd%ie,bd%js:bd%je,npz):: pkz
 
     type(fv_grid_type),  intent(INOUT), target :: gridstruct
@@ -282,10 +282,10 @@ contains
       endif    ! end init_step
 
 ! Empty the "flux capacitors"
-    call init_ijk_mem(is, ie+1, js,  je,   npz, mfx, 0.)
-    call init_ijk_mem(is, ie  , js,  je+1, npz, mfy, 0.)
-    call init_ijk_mem(is, ie+1, jsd, jed,  npz, cx, 0.)
-    call init_ijk_mem(isd, ied, js,  je+1, npz, cy, 0.)
+    call init_ijk_mem_r8(is, ie+1, js,  je,   npz, mfx, 0.)
+    call init_ijk_mem_r8(is, ie  , js,  je+1, npz, mfy, 0.)
+    call init_ijk_mem_r8(is, ie+1, jsd, jed,  npz, cx, 0.)
+    call init_ijk_mem_r8(isd, ied, js,  je+1, npz, cy, 0.)
 
     call init_ijk_mem(isd, ied, jsd, jed, npz, heat_source, 0.)
 
@@ -2476,6 +2476,23 @@ do 1000 j=jfirst,jlast
       enddo
 
  end subroutine init_ijk_mem
+
+ subroutine init_ijk_mem_r8(i1, i2, j1, j2, km, array, var)
+      integer, intent(in):: i1, i2, j1, j2, km
+      real(kind=R_GRID), intent(inout):: array(i1:i2,j1:j2,km)
+      real, intent(in):: var
+      integer:: i, j, k
+
+!$OMP parallel do default(none) shared(i1,i2,j1,j2,km,array,var)
+      do k=1,km
+         do j=j1,j2
+            do i=i1,i2
+               array(i,j,k) = var
+            enddo
+         enddo
+      enddo
+
+ end subroutine init_ijk_mem_r8
 
 
  subroutine Ray_fast(dt, npx, npy, npz, pfull, tau, u, v, w,  &

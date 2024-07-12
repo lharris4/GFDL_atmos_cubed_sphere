@@ -25,7 +25,7 @@ module tp_core_mod
 ! !MODULE: tp_core --- A collection of routines to support FV transport
 !
  use fv_grid_utils_mod, only: big_number
- use fv_arrays_mod,     only: fv_grid_type, fv_grid_bounds_type
+ use fv_arrays_mod,     only: fv_grid_type, fv_grid_bounds_type, R_GRID
 
  implicit none
 
@@ -154,7 +154,7 @@ contains
    enddo
    do j=js,je
       do i=isd,ied
-         q_i(i,j) = (q(i,j)*gridstruct%area(i,j) + fyy(i,j)-fyy(i,j+1))/ra_y(i,j)
+         q_i(i,j) = (q(i,j)*gridstruct%area(i,j) + (fyy(i,j)-fyy(i,j+1)))/ra_y(i,j)
       enddo
    enddo
 
@@ -173,7 +173,7 @@ contains
          fx1(i) =  xfx(i,j) * fx2(i,j)
       enddo
       do i=is,ie
-         q_j(i,j) = (q(i,j)*gridstruct%area(i,j) + fx1(i)-fx1(i+1))/ra_x(i,j)
+         q_j(i,j) = (q(i,j)*gridstruct%area(i,j) + (fx1(i)-fx1(i+1)))/ra_x(i,j)
       enddo
    enddo
 
@@ -1348,7 +1348,7 @@ endif
 
       do j=js-nt-1,je+nt+1
          do i=is-nt-1,ie+nt+1
-            d2(i,j) = (fx2(i,j)-fx2(i+1,j)+fy2(i,j)-fy2(i,j+1))*gridstruct%rarea(i,j)
+            d2(i,j) = ((fx2(i,j)-fx2(i+1,j))+(fy2(i,j)-fy2(i,j+1)))*gridstruct%rarea(i,j)
          enddo
       enddo
 

@@ -47,6 +47,7 @@ module fv_dynamics_mod
    use boundary_mod,        only: nested_grid_BC_apply_intT
    use fv_arrays_mod,       only: fv_grid_type, fv_flags_type, fv_atmos_type, fv_nest_type
    use fv_arrays_mod,       only: fv_diag_type, fv_grid_bounds_type, inline_mp_type, fv_thermo_type
+   use fv_arrays_mod,       only: R_GRID
    use fv_nwp_nudge_mod,    only: do_adiabatic_init
 
 implicit none
@@ -141,11 +142,14 @@ contains
     type(inline_mp_type), intent(inout) :: inline_mp
 
 ! Accumulated Mass flux arrays: the "Flux Capacitor"
-    real, intent(inout) ::  mfx(bd%is:bd%ie+1, bd%js:bd%je,   npz)
-    real, intent(inout) ::  mfy(bd%is:bd%ie  , bd%js:bd%je+1, npz)
+    real(kind=R_GRID), intent(inout) ::  mfx(bd%is:bd%ie+1, bd%js:bd%je,   npz)
+    real(kind=R_GRID), intent(inout) ::  mfy(bd%is:bd%ie  , bd%js:bd%je+1, npz)
 ! Accumulated Courant number arrays
-    real, intent(inout) ::  cx(bd%is:bd%ie+1, bd%jsd:bd%jed, npz)
-    real, intent(inout) ::  cy(bd%isd:bd%ied ,bd%js:bd%je+1, npz)
+    real(kind=R_GRID), intent(inout) ::  cx(bd%is:bd%ie+1, bd%jsd:bd%jed, npz)
+    real(kind=R_GRID), intent(inout) ::  cy(bd%isd:bd%ied ,bd%js:bd%je+1, npz)
+! Double-precision surface pressure
+    real(kind=R_GRID) :: ps_dp  (bd%isd:bd%ied  ,bd%jsd:bd%jed)           ! Surface pressure (pascal)
+
 
     type(fv_grid_type),  intent(inout), target :: gridstruct
     type(fv_flags_type), intent(INOUT) :: flagstruct
@@ -476,6 +480,13 @@ contains
          enddo
       enddo
 
+      !GMAO dry mass roundoff fix
+      do j=js,je
+      do i=is,ie
+         ps_dp(i,j) = pe(i,npz+1,j)
+      enddo
+      enddo
+
       if ( n_map==k_split ) last_step = .true.
 
       if (thermostruct%use_cond) then
@@ -493,6 +504,25 @@ contains
                     domain, n_map==1, i_pack, last_step, heat_source, diss_est, &
                     consv_te, te_2d, time_total)
       call timing_off('DYN_CORE')
+
+      !GMAO dry mass rounding error fix
+      do k=1,npz
+      do j=js,je
+      do i=is,ie
+         ps_dp(i,j) = ps_dp(i,j) + ((mfx(i,j,k)-mfx(i+1,j,k)) + (mfy(i,j,k)-mfy(i,j+1,k)))*gridstruct%rarea(i,j)
+      enddo
+      enddo
+      enddo
+      call mpp_update_domains(ps_dp, domain)
+      !!! DEBUG CODE
+      !print*, pe(is,npz+1,js), ps_dp(is,js)
+      !!! END DEBUG CODE
+      do j=js-1,je+1
+      do i=is-1,ie+1
+         pe(i,npz+1,j) = ps_dp(i,j)
+      enddo
+      enddo
+
 
 #ifdef SW_DYNAMICS
 !!$OMP parallel do default(none) shared(is,ie,js,je,ps,delp,agrav)
