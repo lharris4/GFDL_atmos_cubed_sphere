@@ -126,7 +126,7 @@ module fv_diagnostics_mod
  ! integer :: id_d_grid_ucomp, id_d_grid_vcomp   ! D grid winds
  ! integer :: id_c_grid_ucomp, id_c_grid_vcomp   ! C grid winds
 
- namelist /fv_diag_plevs_nml/ nplev, levs, levs_ave, k100, k200, k500
+ namelist /fv_diag_plevs_nml/ nplev, levs, levs_ave, k100, k200, k300, k500, user_prt_level
 
 ! version number of this module
 ! Include variable "version" to be written to log file.
